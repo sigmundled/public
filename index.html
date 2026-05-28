@@ -274,16 +274,18 @@
         const locationValue = document.getElementById('locationValue');
 
         let generatedFilename = '';
+        const DOWNLOAD_CLEANUP_DELAY_MS = 150;
+        const ALLOWED_EXTENSIONS = ['jpg', 'png', 'webp', 'tiff'];
 
         function sanitizePart(value) {
             return (value || '')
-                .replace(/\.[a-z0-9]+$/gi, '')
                 .normalize('NFKD')
                 .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-zA-Z0-9\s-]/g, ' ')
+                .replace(/[^a-zA-Z0-9\s-]/g, '-')
                 .trim()
                 .replace(/\s+/g, '-')
-                .replace(/-+/g, '-');
+                .replace(/-+/g, '-')
+                .replace(/^-+|-+$/g, '');
         }
 
         function buildFilename() {
@@ -298,9 +300,19 @@
         }
 
         function setOptions(select, items, placeholder) {
-            const options = [`<option value="">${placeholder}</option>`]
-                .concat(items.map((item) => `<option value="${item.replace(/"/g, '&quot;')}">${item}</option>`));
-            select.innerHTML = options.join('');
+            select.innerHTML = '';
+
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = placeholder;
+            select.appendChild(placeholderOption);
+
+            items.forEach((item) => {
+                const option = document.createElement('option');
+                option.value = item;
+                option.textContent = item;
+                select.appendChild(option);
+            });
         }
 
         function currentBrand() {
@@ -341,7 +353,7 @@
             generatedFilename = buildFilename();
             filenameValue.textContent = generatedFilename || '-';
             locationValue.textContent = sanitizePart(locationInput.value) || '-';
-            downloadButton.disabled = !(imageUpload.files && imageUpload.files.length && generatedFilename);
+            downloadButton.disabled = !(imageUpload.files && imageUpload.files[0] && generatedFilename);
         }
 
         function initialize() {
@@ -377,7 +389,8 @@
             const file = imageUpload.files[0];
             const url = URL.createObjectURL(file);
             const link = document.createElement('a');
-            const extension = imageType.value.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
+            const selectedExtension = imageType.value.toLowerCase();
+            const extension = ALLOWED_EXTENSIONS.includes(selectedExtension) ? selectedExtension : 'jpg';
 
             link.href = url;
             link.download = `${generatedFilename}.${extension}`;
@@ -385,7 +398,7 @@
             link.click();
             link.remove();
 
-            setTimeout(() => URL.revokeObjectURL(url), 0);
+            setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_CLEANUP_DELAY_MS);
         });
 
         initialize();
