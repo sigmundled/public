@@ -17,32 +17,41 @@ const CATALOGUE_DATA = [
         brand: 'Kverneland',
         catalogueGroups: [
             {
-                name: 'Ploughs',
+                name: 'Precision Farming Solutions',
                 productGroups: [
                     {
-                        name: 'Mounted Reversible Ploughs',
+                        name: 'Terminals & Accessories',
                         products: [
-                            '2500 S i-Plough',
-                            '3300 S Variomat',
-                            '3500 S Variomat',
-                            '4000 S Variomat',
-                            'PG 100',
-                            'PW Variomat',
-                            'UN Variomat',
-                            'US Variomat'
+                            'IsoMatch Tellus PRO',
+                            'IsoMatch Tellus GO+',
+                            'IsoMatch Tellus 1200',
+                            'IsoMatch Grip'
                         ]
                     },
                     {
-                        name: 'Semi-Mounted Reversible Ploughs',
+                        name: 'Connectivity',
                         products: [
-                            '2500 i-Plough',
-                            '3500 M i-Plough',
-                            '4500 M i-Plough',
-                            '5500 M i-Plough',
-                            'EG 100',
-                            'PLW 100'
+                            'IsoMatch Global 2',
+                            'IsoMatch Wireless',
+                            'IsoMatch InLine',
+                            'IsoMatch GeoControl',
+                            'IsoMatch FarmCentre'
                         ]
                     },
+                    {
+                        name: 'Service Tools',
+                        products: [
+                            'IsoMatch Eye',
+                            'IsoMatch MultiEye',
+                            'IsoMatch TopService',
+                            'IsoMatch InDemo'
+                        ]
+                    }
+                ]
+            },
+            {
+                name: 'Ploughs',
+                productGroups: [
                     {
                         name: 'Conventional Ploughs',
                         products: [
@@ -54,7 +63,30 @@ const CATALOGUE_DATA = [
                         ]
                     },
                     {
-                        name: 'Packers & Furrow Presses',
+                        name: 'Eco Plough',
+                        products: []
+                    },
+                    {
+                        name: 'Reversible Ploughs',
+                        products: [
+                            '2500 S i-Plough',
+                            '3300 S Variomat',
+                            '3500 S Variomat',
+                            '4000 S Variomat',
+                            'PG 100',
+                            'PW Variomat',
+                            'UN Variomat',
+                            'US Variomat',
+                            '2500 i-Plough',
+                            '3500 M i-Plough',
+                            '4500 M i-Plough',
+                            '5500 M i-Plough',
+                            'EG 100',
+                            'PLW 100'
+                        ]
+                    },
+                    {
+                        name: 'Packers',
                         products: [
                             'Furrow Press Ring',
                             'Furrow Press Rubber',
@@ -74,6 +106,19 @@ const CATALOGUE_DATA = [
                             'CLG II Subsoiler',
                             'CLG III Subsoiler',
                             'DTX Subsoiler'
+                        ]
+                    },
+                    {
+                        name: 'Disc Harrows',
+                        products: [
+                            'Qualidisc 1100 L',
+                            'Qualidisc Farmer',
+                            'Qualidisc Farmer F',
+                            'Qualidisc Farmer T',
+                            'Qualidisc Pro',
+                            'Qualidisc Pro F',
+                            'Qualidisc Pro T',
+                            'Qualidisc 21000 T'
                         ]
                     },
                     {
@@ -103,16 +148,20 @@ const CATALOGUE_DATA = [
                         ]
                     },
                     {
-                        name: 'Disc Harrows',
+                        name: 'Striptiller',
                         products: [
-                            'Qualidisc 1100 L',
-                            'Qualidisc Farmer',
-                            'Qualidisc Farmer F',
-                            'Qualidisc Farmer T',
-                            'Qualidisc Pro',
-                            'Qualidisc Pro F',
-                            'Qualidisc Pro T',
-                            'Qualidisc 21000 T'
+                            'Kultistrip',
+                            'Kultistrip F'
+                        ]
+                    },
+                    {
+                        name: 'Seedbed Cultivators',
+                        products: [
+                            'NG 100',
+                            'NG 200',
+                            'NG 300',
+                            'NG F',
+                            'i-Till'
                         ]
                     },
                     {
@@ -128,23 +177,6 @@ const CATALOGUE_DATA = [
                         ]
                     },
                     {
-                        name: 'Seedbed Cultivators',
-                        products: [
-                            'NG 100',
-                            'NG 200',
-                            'NG 300',
-                            'NG F',
-                            'i-Till'
-                        ]
-                    },
-                    {
-                        name: 'Striptillers',
-                        products: [
-                            'Kultistrip',
-                            'Kultistrip F'
-                        ]
-                    },
-                    {
                         name: 'Rollers',
                         products: [
                             'Packer Ring Roller',
@@ -152,7 +184,12 @@ const CATALOGUE_DATA = [
                             'Cambridge Roller',
                             'Heavy Roller'
                         ]
-                    },
+                    }
+                ]
+            },
+            {
+                name: 'Choppers',
+                productGroups: [
                     {
                         name: 'Flail Choppers',
                         products: [
@@ -168,6 +205,10 @@ const CATALOGUE_DATA = [
                 name: 'Seeders',
                 productGroups: [
                     {
+                        name: 'Pneumatic Solo Seed Drills',
+                        products: []
+                    },
+                    {
                         name: 'Pneumatic Mounted Seed Drills',
                         products: [
                             'e-drill compact',
@@ -181,7 +222,11 @@ const CATALOGUE_DATA = [
                         ]
                     },
                     {
-                        name: 'Combination Seed Drills',
+                        name: 'Tine Seeders',
+                        products: []
+                    },
+                    {
+                        name: 'Integrated Seeding Combinations',
                         products: [
                             'u-drill 3001',
                             'u-drill 4001',
@@ -194,21 +239,31 @@ const CATALOGUE_DATA = [
                         ]
                     },
                     {
-                        name: 'Precision Drills',
+                        name: 'Mechanical Precision Drills',
                         products: [
-                            'Optima F',
-                            'Optima HD',
-                            'Optima HD-II',
-                            'Optima TF',
-                            'Optima V',
-                            'i-Planter F',
-                            'i-Planter HD',
                             'Monopill SE',
                             'Unicorn IV'
                         ]
                     },
                     {
-                        name: 'Cover Crop & Special Seeders',
+                        name: 'Pneumatic Precision Drills',
+                        products: [
+                            'Optima F',
+                            'Optima HD',
+                            'Optima HD-II',
+                            'Optima TF',
+                            'i-Planter F',
+                            'i-Planter HD'
+                        ]
+                    },
+                    {
+                        name: 'Vegetable Precision Drills',
+                        products: [
+                            'Optima V'
+                        ]
+                    },
+                    {
+                        name: 'Cover Crop Seeders',
                         products: [
                             'Cover Crop Seeder',
                             'Grass Seeder',
@@ -218,10 +273,89 @@ const CATALOGUE_DATA = [
                 ]
             },
             {
-                name: 'Forage Equipment',
+                name: 'Weeders',
                 productGroups: [
                     {
-                        name: 'Disc Mowers',
+                        name: 'Rotary Hoes',
+                        products: [
+                            'Rotary Hoe'
+                        ]
+                    },
+                    {
+                        name: 'Guidance Interfaces',
+                        products: []
+                    },
+                    {
+                        name: 'Inter-row Cultivators',
+                        products: [
+                            'Weeder 3m',
+                            'Weeder 6m',
+                            'Weeder 9m'
+                        ]
+                    }
+                ]
+            },
+            {
+                name: 'Fertiliser Spreaders',
+                productGroups: [
+                    {
+                        name: 'Mounted Fertiliser Spreaders',
+                        products: [
+                            'Exacta CL',
+                            'Exacta CL EW',
+                            'Exacta HL',
+                            'Exacta TL',
+                            'Exacta TL Geospread',
+                            'Exacta TL EW',
+                            'RO-M',
+                            'RO-C',
+                            'RO-XL',
+                            'RO-EDW',
+                            'RO-EDW Geospread',
+                            'RO-XXL',
+                            'RO-XXL Geospread iDC'
+                        ]
+                    }
+                ]
+            },
+            {
+                name: 'Sprayers',
+                productGroups: [
+                    {
+                        name: 'Front Mounted Spray Equipment',
+                        products: []
+                    },
+                    {
+                        name: 'Mounted Sprayers',
+                        products: [
+                            'iXter B 12',
+                            'iXter B 16',
+                            'iXter B 24',
+                            'iXter A 12',
+                            'iXter A 18',
+                            'iXter A 24'
+                        ]
+                    },
+                    {
+                        name: 'Trailed Sprayers',
+                        products: [
+                            'iXtrack T3-24',
+                            'iXtrack T3-27',
+                            'iXtrack T4-27',
+                            'iXtrack T4-30',
+                            'iXtrack T4-36',
+                            'iXtrack T6-27',
+                            'iXtrack T6-30',
+                            'iXtrack T6-36'
+                        ]
+                    }
+                ]
+            },
+            {
+                name: 'Mowers',
+                productGroups: [
+                    {
+                        name: 'Plain Mowers',
                         products: [
                             '2316 M',
                             '2320 M',
@@ -232,16 +366,14 @@ const CATALOGUE_DATA = [
                             '2828 M',
                             '2832 M',
                             '2836 M',
-                            '2840 M'
-                        ]
-                    },
-                    {
-                        name: 'Front Mowers',
-                        products: [
+                            '2840 M',
                             '2800 F',
                             '2828 F',
                             '2832 F',
-                            '2832 FS'
+                            '2832 FS',
+                            '5087 M',
+                            '5090 MT BX',
+                            '5095 M'
                         ]
                     },
                     {
@@ -266,17 +398,14 @@ const CATALOGUE_DATA = [
                             '4336 CR',
                             '4340 CT'
                         ]
-                    },
+                    }
+                ]
+            },
+            {
+                name: 'Tedders',
+                productGroups: [
                     {
-                        name: 'Butterfly Mowers',
-                        products: [
-                            '5087 M',
-                            '5090 MT BX',
-                            '5095 M'
-                        ]
-                    },
-                    {
-                        name: 'Tedders',
+                        name: 'Tedders, 3pt Mounted',
                         products: [
                             'FANEX 504',
                             'FANEX 604',
@@ -285,53 +414,112 @@ const CATALOGUE_DATA = [
                             'FANEX 1004',
                             'FANEX 1124',
                             'FANEX 1204',
-                            'FANEX 1404',
-                            'FANEX 1564 C'
+                            'FANEX 1404'
                         ]
                     },
                     {
-                        name: 'Rakes',
+                        name: 'Tedders, Trailed',
+                        products: [
+                            'FANEX 1564 C'
+                        ]
+                    }
+                ]
+            },
+            {
+                name: 'Rakes',
+                productGroups: [
+                    {
+                        name: 'Single Rotor Rakes',
                         products: [
                             'ANDEX 314',
                             'ANDEX 370',
-                            'ANDEX 424',
+                            'ANDEX 424'
+                        ]
+                    },
+                    {
+                        name: 'Double Rotor Rakes',
+                        products: [
                             'ANDEX 644',
                             'ANDEX 724',
                             'ANDEX 824',
-                            'ANDEX 1304',
+                            'ANDEX 1304'
+                        ]
+                    },
+                    {
+                        name: 'Four Rotor Rakes',
+                        products: [
                             'ANDEX 1505',
                             'ANDEX 1506',
                             'ANDEX 1515 C'
                         ]
-                    },
+                    }
+                ]
+            },
+            {
+                name: 'Mergers',
+                productGroups: [
                     {
-                        name: 'Mergers',
+                        name: 'Multi Crop Mergers',
                         products: [
                             'ROC 714',
                             'ROC 810',
                             'ROC 915',
-                            'ROC 1220',
+                            'ROC 1220'
+                        ]
+                    },
+                    {
+                        name: 'Dry Crop Mergers',
+                        products: [
                             'RS 312',
                             'RS 330',
                             'RS 420',
                             'RS 450'
                         ]
-                    },
+                    }
+                ]
+            },
+            {
+                name: 'Balers',
+                productGroups: [
                     {
-                        name: 'Round Balers',
+                        name: 'Fixed Chamber Round Balers',
                         products: [
                             '6250 Plus',
-                            '6500 F',
-                            '6600 Plus',
-                            '6700 Plus',
-                            'FastBale Premium'
+                            '6500 F'
                         ]
                     },
                     {
-                        name: 'Bale Wrappers',
+                        name: 'Variable Chamber Round Balers',
+                        products: [
+                            '6600 Plus',
+                            '6700 Plus'
+                        ]
+                    },
+                    {
+                        name: 'Baler-Wrapper Combinations',
+                        products: []
+                    },
+                    {
+                        name: 'Non-Stop Baling',
+                        products: [
+                            'FastBale Premium'
+                        ]
+                    }
+                ]
+            },
+            {
+                name: 'Wrappers',
+                productGroups: [
+                    {
+                        name: 'Satellite Wrappers',
                         products: [
                             '7510',
-                            '7710',
+                            '7710'
+                        ]
+                    },
+                    {
+                        name: 'Turn Table Wrappers',
+                        products: [
                             '7730',
                             '7750',
                             '7760'
@@ -340,118 +528,15 @@ const CATALOGUE_DATA = [
                 ]
             },
             {
-                name: 'Crop Care',
+                name: 'Bale Choppers',
                 productGroups: [
                     {
-                        name: 'Mounted Sprayers',
-                        products: [
-                            'iXter B 12',
-                            'iXter B 16',
-                            'iXter B 24',
-                            'iXter A 12',
-                            'iXter A 18',
-                            'iXter A 24'
-                        ]
-                    },
-                    {
-                        name: 'Trailed Sprayers',
-                        products: [
-                            'iXtrack T3-24',
-                            'iXtrack T3-27',
-                            'iXtrack T4-27',
-                            'iXtrack T4-30',
-                            'iXtrack T4-36',
-                            'iXtrack T6-27',
-                            'iXtrack T6-30',
-                            'iXtrack T6-36'
-                        ]
-                    },
-                    {
-                        name: 'Self-Propelled Sprayers',
-                        products: [
-                            'iXdrive 24',
-                            'iXdrive 27',
-                            'iXdrive 30',
-                            'iXdrive 36'
-                        ]
-                    },
-                    {
-                        name: 'Fertiliser Spreaders',
-                        products: [
-                            'Exacta CL',
-                            'Exacta CL EW',
-                            'Exacta HL',
-                            'Exacta TL',
-                            'Exacta TL Geospread',
-                            'Exacta TL EW',
-                            'RO-M',
-                            'RO-C',
-                            'RO-XL',
-                            'RO-EDW',
-                            'RO-EDW Geospread',
-                            'RO-XXL',
-                            'RO-XXL Geospread iDC'
-                        ]
-                    },
-                    {
-                        name: 'Mechanical Weeding',
-                        products: [
-                            'Rotary Hoe',
-                            'Weeder 3m',
-                            'Weeder 6m',
-                            'Weeder 9m'
-                        ]
-                    }
-                ]
-            },
-            {
-                name: 'Feeding Solutions',
-                productGroups: [
-                    {
-                        name: 'Bale Choppers & Feeders',
+                        name: 'Bale Choppers / Feeders',
                         products: [
                             '850',
                             '860',
                             'BX 180',
                             'BX 200'
-                        ]
-                    }
-                ]
-            },
-            {
-                name: 'Precision Farming',
-                productGroups: [
-                    {
-                        name: 'Terminals & Displays',
-                        products: [
-                            'IsoMatch Tellus PRO',
-                            'IsoMatch Tellus GO+',
-                            'IsoMatch Tellus 1200'
-                        ]
-                    },
-                    {
-                        name: 'Task Control & Software',
-                        products: [
-                            'IsoMatch GeoControl',
-                            'IsoMatch FarmCentre',
-                            'IsoMatch Grip'
-                        ]
-                    },
-                    {
-                        name: 'GNSS & Connectivity',
-                        products: [
-                            'IsoMatch Global 2',
-                            'IsoMatch Wireless',
-                            'IsoMatch InLine'
-                        ]
-                    },
-                    {
-                        name: 'Camera & Diagnostic Tools',
-                        products: [
-                            'IsoMatch Eye',
-                            'IsoMatch MultiEye',
-                            'IsoMatch TopService',
-                            'IsoMatch InDemo'
                         ]
                     }
                 ]
