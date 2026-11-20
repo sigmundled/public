@@ -1,0 +1,121 @@
+# ClickDimensions Form ID Inventory
+
+This inventory covers identifiers used by the generated forms and the older
+form samples in this project. In the field tables, **CRM field name** is the
+submitted HTML `name` value; **HTML id** is the corresponding DOM `id` value.
+The CRM field name is the value that must match the ClickDimensions field.
+
+## Form Capture IDs
+
+| Form Capture ID | Known use / status |
+|---|---|
+| `aUJCKrU5cUCrBATSPZK2A` | User-provided Form Capture ID for the `All test` template. |
+| `amsvL4rr570a2HobXgPpVS` | User-provided Form Capture ID for the `Contact a dealer` template. |
+| `aBjcID4M5h0CGWLyHqaWEZ` | User-provided Form Capture ID for the `Speak to a specialist` template. |
+| `a35LfOLrkufN3TaeTaw2A` | User-provided Form Capture ID for the `Get a quotation` template. |
+| `aqwoWBNOoEyLhxJZYqVJ1g` | Previously used persistent form ID, also present in `others/test-manon/html-form-manon.html`. No longer assigned by the test builder. |
+| `a4yEg6IucR0Wyw0hXjs5Dt` | Used by the earlier `others/testing/html-form-v.0.2.html` and `html-form-v.0.3.html` samples. |
+| `aZnUHI3rMA0ist4svsbTTc` | Previously used Form Capture ID, recorded in the earlier form context. It remains in the generator's Form ID help text and input placeholder; it is not the current persistent ID. |
+
+The generator can accept other Form Capture IDs when creating a non-persistent
+form. The IDs above are the specific IDs found in the project materials so far.
+
+## Analytics
+
+| Identifier | Value | Known use |
+|---|---|---|
+| ClickDimensions analytics account key | `amrb2vDs10263gxpnkXIw` | Present in the generator default and the Manon and older test forms. |
+
+## Current CRM Form Fields
+
+These are the 21 standardized fields defined by the current form builder. Some
+are disabled by default or only included in particular templates; they remain
+available as known field mappings.
+
+| CRM field name (`name`) | HTML id (`id`) |
+|---|---|
+| `firstname` | `firstname` |
+| `Last Name` | `last-name` |
+| `Email Address` | `email-address` |
+| `Phone number` | `phone-number` |
+| `Company name` | `company-name` |
+| `street` | `street` |
+| `House Number` | `house-number` |
+| `Postal Code` | `postal-code` |
+| `Country` | `country` |
+| `City` | `city` |
+| `Already_Kverneland_Vicon_customer` | `already-customer` |
+| `Activity` | `activity` |
+| `Job title` | `job-title` |
+| `Product_Interest_1` | `product-interest` |
+| `Product_Interest` | `product-interest-general` |
+| `Brand_Interest_1` | `brand-interest` |
+| `Contact_Reason` | `contact-reason` |
+| `Purchase timeframe` | `purchase-timeframe` |
+| `Local Dealer` | `local-dealer` |
+| `Comments` | `comments` |
+| `Contact_Person_InnovAgri_2026` | `contact-person` |
+
+## Consent Fields
+
+The current builder's default consent names are also CRM field names. Consent
+inputs do not currently have explicit HTML `id` attributes.
+
+| CRM field name (`name`) | Submitted value | Known use |
+|---|---|---|
+| `Yes, I agree` | `on` | Default newsletter/marketing consent in the current builder and Manon form. |
+| `Privacy Policy` | `Yes` | Default required privacy consent in the current builder and Manon form. |
+| `Custom_Consent` | `on` | Name assigned when adding a custom consent in the current builder; can be edited. |
+| `newsletter` | `on` | Separate newsletter consent in the older v0.2/v0.3 test forms. |
+| `productupdates` | `on` | Separate product-updates consent in the older v0.2/v0.3 test forms. |
+
+## Historical Field Mappings
+
+The older v0.2/v0.3 samples used these CRM field names and HTML IDs. Entries
+that also appear in the current table are repeated here only where the older
+mapping differs.
+
+| Historical CRM field name (`name`) | Historical HTML id (`id`) | Sample |
+|---|---|---|
+| `lastname` | `lastname` | v0.2 / v0.3 |
+| `emailaddress1` | `emailaddress1` | v0.2 / v0.3 |
+| `companyname` | `companyname` | v0.2 / v0.3 |
+
+The older samples also used `firstname` for both the CRM field name and HTML
+ID; that mapping is already listed in the current field table.
+
+## Additional Marketing Test Fields (Pending CRM Confirmation)
+
+The following is a proposed mapping for the `All test` experiment, not a
+confirmed CRM field. Create or confirm it in CRM before submitting the form.
+
+| Proposed CRM field name (`name`) | Proposed HTML id (`id`) | Proposed values | Status |
+|---|---|---|---|
+| `Marketing_Material_Type` | `marketing-material-type` | `Brochure`, `Information`, `Manuals` | Pending CRM field and option-set confirmation; currently marked as proposed in the builder. |
+
+The builder also offers `Brochure` and `Manuals` as `Contact_Reason` values in
+the `All test` template. Confirm those values are valid for the CRM option set
+before use. `Info Material` is already a known `Contact_Reason` value.
+
+Existing marketing consent names are documented under Consent Fields
+(`Yes, I agree`, `newsletter`, and `productupdates`). Confirm the desired
+consent and automation handling with the CRM/marketing owners; do not treat
+these as new field mappings.
+
+## Technical Form Fields
+
+These fields support form behavior; they are not ordinary CRM profile fields.
+
+| Field purpose | HTML id (`id`) | Submitted name (`name`) | Known use |
+|---|---|---|---|
+| Spam honeypot | `website` | `website` | Optional in generated forms; present in the Manon form. |
+| Post-submit redirect | `redirect` | `redirect` | Generated by the current builder and present in the Manon and v0.3 forms. |
+
+## Scope Notes
+
+- HTML IDs used only by the form-builder interface (for example `formId` or
+	`next-btn`) are not included; they are not emitted as form fields.
+- Display labels, autocomplete tokens, option values, section-heading IDs, and
+	privacy-policy URLs are not CRM/form identifiers and are not listed here.
+- `PASTE-FORM-ID-HERE` is a generator fallback placeholder, not a known
+	ClickDimensions Form Capture ID.

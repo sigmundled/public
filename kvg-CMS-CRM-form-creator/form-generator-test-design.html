@@ -1,0 +1,2328 @@
+<!--
+=============================================================================
+KVG CRM FORM GENERATOR - v2.0 (guided wizard)
+=============================================================================
+Purpose:
+  Internal tool for backend users to generate "paste into CMS" ClickDimensions
+  form HTML (same structure as html-form-manon.html), without touching code.
+
+Usage:
+  1. Open this file in a browser (or host it on the backend as a static file).
+  2. Unlock with the configured password.
+  3. Walk through the 4 guided steps, then copy or download the generated
+     HTML and paste it into an HTML block in the CMS.
+
+Adding help images:
+  The help callouts (e.g. "where do I find my Form ID?") support screenshots.
+  Drop image files next to this file (e.g. in an /img folder) and set the
+  paths in the HELP_IMAGES object in the script below, e.g.:
+    const HELP_IMAGES = { formId: 'img/form-id-location.png' };
+  Until a path is set, a placeholder box is shown instead.
+
+Changing the password:
+  Update the SHA-256 hashes in PASSWORD_HASHES below.
+  PowerShell one-liner to generate a hash:
+    [BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes('NEW-PASSWORD'))).Replace('-','').ToLower()
+
+Note:
+  The password gate is client-side only. It deters casual access but is not
+  real security - do not put secrets in this file. Host on an internal URL.
+=============================================================================
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KVG Form Builder</title>
+<style>
+  :root {
+    --green: #007b3d;
+    --green-dark: #075d33;
+    --green-soft: #edf5ef;
+    --ink: #1d2922;
+    --muted: #58675e;
+    --line: #dfe7e1;
+    --ground: #e9efeb;
+    --card: #ffffff;
+    --radius: 8px;
+    --shadow: none;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", "Inter", Arial, sans-serif;
+    background: var(--ground);
+    min-height: 100vh;
+    color: var(--ink);
+  }
+
+  /* ---------- Password gate ---------- */
+  #gate { position: fixed; inset: 0; background: var(--ground); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
+  #gate form { background: #fff; border: 1px solid var(--line); padding: 36px 32px; border-radius: 12px; width: min(360px, 100%); text-align: center; }
+  #gate .logo { display: block; width: min(220px, 100%); height: auto; margin: 0 auto 18px; }
+  #gate h2 { color: var(--green); margin-bottom: 6px; font-size: 22px; }
+  #gate p { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+  #gate input { width: 100%; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 10px; margin-bottom: 14px; font-size: 15px; }
+  #gate input:focus { outline: 2px solid var(--green); outline-offset: 2px; border-color: var(--green); }
+  #gate button { width: 100%; }
+  #gate-error { color: #c00; font-size: 13px; margin-top: 12px; }
+
+  /* ---------- App shell ---------- */
+  .shell { width: calc(100% - 16px); max-width: 1160px; min-height: calc(100vh - 16px); margin: 8px auto 110px; padding: 26px clamp(18px, 3vw, 36px) 140px; background: #fff; border: 1px solid var(--line); border-radius: 12px; }
+  .brand { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; }
+  .brand .mark { display: block; width: 154px; height: 42px; flex: 0 0 auto; object-fit: contain; object-position: left center; }
+  .brand h1 { font-size: 21px; color: var(--ink); }
+  .brand p { font-size: 13px; color: var(--muted); }
+  .brand > .btn { margin-left: auto; flex: 0 0 auto; }
+  .changelog-dialog { width: min(520px, calc(100% - 32px)); max-height: min(80vh, 640px); margin: auto; padding: 24px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); }
+  .changelog-dialog::backdrop { background: rgba(15, 25, 19, .45); }
+  .changelog-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+  .changelog-heading h2 { font-size: 21px; }
+  .changelog-heading p, .changelog-list p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .changelog-list { display: grid; gap: 16px; }
+  .changelog-list h3 { margin-bottom: 5px; font-size: 14px; }
+  .changelog-list ul { margin-left: 20px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .changelog-list li + li { margin-top: 4px; }
+
+  /* ---------- Progress bar ---------- */
+  .wizard-progress { display: flex; align-items: center; min-height: 58px; margin-bottom: 24px; overflow: visible; background: transparent; }
+  .progress-step { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; flex: 0 0 auto; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; }
+  .progress-step .dot { width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1px solid #cbd6ce; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; color: var(--muted); transition: background-color .15s, border-color .15s, color .15s; }
+  .progress-step .lbl { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .progress-step.active .dot { background: var(--green); border-color: var(--green); color: #fff; }
+  .progress-step.active .lbl { color: var(--green); }
+  .progress-step.done .dot { background: var(--green-soft); border-color: var(--green); color: var(--green); }
+  .progress-line { flex: 1; height: 1px; background: var(--line); margin: 0 8px 20px; }
+  @media (max-width: 640px) {
+    .progress-step:not(.active) .lbl { display: none; }
+    .progress-line { min-width: 8px; margin-left: 4px; margin-right: 4px; }
+  }
+
+  /* ---------- Steps ---------- */
+  .step { display: none; }
+  .step.active { display: block; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 26px; margin-bottom: 16px; }
+  .card h3 { font-size: 17px; margin-bottom: 4px; color: var(--ink); }
+  .card .sub { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+
+  /* ---------- Template picker ---------- */
+  .template-intro { margin-bottom: 22px; }
+  .template-kicker { color: var(--green-dark); font-size: 12px; font-weight: 600; }
+  .template-intro h2 { margin: 7px 0; font-size: 24px; }
+  .template-intro p { color: var(--muted); font-size: 14px; }
+  .template-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 14px; }
+  .template-grid[hidden] { display: none; }
+  .template-card { min-height: 156px; padding: 20px; border: 1px solid var(--line); border-radius: 8px; background: #fff; text-align: left; color: var(--ink); cursor: pointer; transition: border-color .15s, background-color .15s; }
+  .template-card:hover { border-color: var(--green); background: #f8fbf9; }
+  .template-card.selected { border-color: var(--green); background: var(--green-soft); }
+  .template-card h3 { margin: 15px 0 6px; font-size: 17px; }
+  .template-card p { color: var(--muted); font-size: 13px; line-height: 1.45; }
+  .template-tag { display: inline-block; color: var(--green-dark); font-size: 12px; font-weight: 600; }
+        .template-id { display: block; margin-top: 12px; color: #68756d; font-size: 12px; overflow-wrap: anywhere; }
+      .template-id { display: block; margin-top: 12px; color: #68756d; font-size: 12px; overflow-wrap: anywhere; }
+      <p class="sub">The form submits directly into ClickDimensions. Template IDs are shown on their cards; custom forms use the ID entered here.</p>
+    .template-id { display: block; margin-top: 12px; color: #68756d; font-size: 12px; overflow-wrap: anywhere; }
+  .template-placeholder { border-style: dashed; background: #f7f9f8; color: var(--muted); cursor: default; }
+  .template-placeholder:hover { border-color: var(--line); transform: none; }
+  .template-placeholder .template-tag { color: var(--muted); }
+  .template-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .template-footer p { color: var(--muted); font-size: 13px; }
+  .template-summary { padding: 20px; border: 1px solid var(--line); border-radius: 8px; background: #f7f9f8; }
+  .template-summary h3 { margin-bottom: 4px; }
+  .template-summary > p { color: var(--muted); font-size: 13px; }
+  .template-field-groups { display: grid; gap: 12px; margin: 18px 0; }
+  .template-field-group h4 { margin-bottom: 7px; color: var(--muted); font-size: 11px; text-transform: uppercase; }
+  .template-field-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .template-field { padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: #fff; font-size: 12px; }
+  .template-field.is-required::after { content: " *"; color: #c62828; font-weight: 700; }
+  .template-image-group { max-width: 560px; margin-top: 22px; }
+  .field-hint { margin-top: 5px; color: var(--muted); font-size: 12px; }
+
+  /* ---------- Inputs ---------- */
+  .gen-group { margin-bottom: 16px; }
+  .gen-group > label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px; }
+  .gen-group input[type="text"], .gen-group select, .gen-group textarea { width: 100%; padding: 11px 13px; border: 1px solid #cbd6ce; border-radius: 6px; font-size: 14px; font-family: inherit; transition: border-color .15s; }
+  .gen-group input:focus, .gen-group textarea:focus { outline: 2px solid var(--green); outline-offset: 1px; border-color: var(--green); }
+  .gen-group input.error, .gen-group textarea.error { border-color: #c62828; background: #fdf5f5; }
+  .gen-group input.error:focus, .gen-group textarea.error:focus { border-color: #c62828; }
+  .field-error { color: #b71c1c; font-size: 12.5px; margin-top: 5px; font-weight: 600; }
+  .gen-group textarea { min-height: 64px; resize: vertical; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* ---------- Validation banner ---------- */
+  .validation-banner { display: flex; align-items: flex-start; gap: 12px; background: #fdf0f0; border: 1.5px solid #e8b4b4; border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; font-size: 14px; color: #8c2323; }
+  .validation-banner[hidden] { display: none; }
+  .validation-banner .vb-icon { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; background: #c62828; color: #fff; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+  .validation-banner ul { margin: 4px 0 0 18px; }
+  .validation-banner li { margin-bottom: 2px; }
+  .validation-banner .vb-link { color: #8c2323; font-weight: 700; text-decoration: underline; cursor: pointer; }
+
+  /* ---------- Attention pulse (shown on failed step advance) ---------- */
+  @keyframes attn-pulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(198, 40, 40, .35); }
+    50% { transform: scale(1.025); box-shadow: 0 0 0 7px rgba(198, 40, 40, .10); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(198, 40, 40, 0); }
+  }
+  .attn { animation: attn-pulse .6s ease 2; border-radius: 10px; }
+  .field-error.attn, .validation-banner.attn { animation: none; }
+
+  /* ---------- Live mini preview ---------- */
+  .mini-preview { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-top: 16px; }
+  .mini-preview .mp-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #f4f7f5; padding: 9px 14px; font-size: 12px; font-weight: 600; color: var(--ink); }
+  .mini-preview .mp-hint { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .template-preview-image { display: block; width: 100%; max-height: 220px; object-fit: cover; border-radius: 6px; margin: 0 auto 20px; }
+  .mini-preview .mp-body { padding: 18px; background: #f5f5f5; }
+  .preview-editor-layout { display: block; }
+  .preview-editor-layout .mini-preview { margin-top: 16px; }
+  .submit-preview-layout { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
+  .fields-layout { display: block; }
+  @media (max-width: 760px) {
+    .fields-preview-panel { position: static; max-height: none; }
+  }
+
+  /* ---------- People manager ---------- */
+  .cp-chip-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 14px; }
+  .cp-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--green-soft); border: 1px solid #bfe0cd; color: var(--green-dark); border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; }
+  .cp-chip button { border: none; background: none; color: var(--green-dark); cursor: pointer; font-size: 14px; line-height: 1; padding: 0; opacity: .6; }
+  .cp-chip button:hover { opacity: 1; }
+  .cp-add { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; }
+  @media (max-width: 640px) { .cp-add { grid-template-columns: 1fr; } }
+  .cp-add select, .cp-add input { padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 10px; font-size: 14px; font-family: inherit; }
+  .cp-add select:focus, .cp-add input:focus { outline: none; border-color: var(--green); }
+
+  /* ---------- Word picker for privacy link ---------- */
+  .link-tool { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .word-pick { background: #fff; border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 14px; line-height: 2; }
+  .word-pick .w { border-radius: 5px; padding: 2px 1px; margin: 0 -1px; cursor: pointer; transition: background .12s; }
+  .word-pick .w:hover, .word-pick .w:focus { outline: none; background: rgba(0, 123, 61, .18); }
+  .word-pick .w.linked { text-decoration: underline; text-decoration-color: var(--green); text-underline-offset: 3px; }
+  .word-pick .w.sel, .word-pick .w.sel:hover { background: var(--green); color: #fff; }
+  .consent-step-note { margin: 0 0 10px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .privacy-label-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  /* ---------- Language picker ---------- */
+  .language-select-wrap { max-width: 420px; }
+  .language-select-wrap label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 7px; }
+  .language-select { width: 100%; padding: 13px 42px 13px 14px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .language-select:focus { outline: 2px solid var(--green); outline-offset: 2px; }
+  .privacy-url-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+  .privacy-url-row .gen-group { margin-bottom: 0; }
+  #privacyUrl[readonly] { background: #f3f6f4; color: var(--muted); cursor: default; }
+  .setting-lock-btn { white-space: nowrap; }
+  .anti-spam-card { border-left: 4px solid #d49c2c; }
+  .switch input:disabled + .slider { cursor: not-allowed; }
+  .fields-heading-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .text-link-btn { border: 0; padding: 0; background: none; color: var(--green-dark); font: inherit; font-size: 13px; text-align: left; text-decoration: underline; cursor: pointer; }
+  .btn[hidden] { display: none; }
+  @media (max-width: 560px) { .privacy-url-row { grid-template-columns: 1fr; } .setting-lock-btn { justify-self: start; } }
+
+  /* ---------- Help callouts (with image slot) ---------- */
+  .help-block { display: flex; gap: 14px; align-items: stretch; background: var(--green-soft); border: 1px solid #cfe0d4; border-radius: 8px; padding: 14px; margin: -6px 0 16px; }
+  .help-text { flex: 1; font-size: 13px; color: var(--ink); line-height: 1.5; }
+  .help-text strong { display: block; margin-bottom: 4px; color: var(--green-dark); }
+  .help-text ol { margin: 6px 0 8px 20px; }
+  .help-text li { margin-bottom: 3px; }
+  .form-id-example { display: block; margin: 8px 0; padding: 8px 10px; border-radius: 6px; background: #fff; overflow-wrap: anywhere; }
+  .form-id-example strong { display: inline; color: var(--green-dark); }
+  .help-block img { width: 220px; border-radius: 6px; object-fit: cover; border: 1px solid #cfe0d4; }
+  .help-img-placeholder { width: 220px; min-height: 90px; border: 1px dashed #a9c5b2; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; text-align: center; padding: 8px; gap: 4px; }
+  .help-img-placeholder .cam { font-size: 20px; }
+
+  /* ---------- Switches ---------- */
+  .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; font-size: 14px; }
+  .switch-row .s-label { font-weight: 500; }
+  .switch-row .s-hint { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
+  .switch { position: relative; width: 44px; height: 24px; flex: 0 0 auto; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; inset: 0; background: #d4ddd7; border-radius: 999px; transition: .2s; cursor: pointer; }
+  .slider::before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+  .switch input:checked + .slider { background: var(--green); }
+  .switch input:checked + .slider::before { transform: translateX(20px); }
+
+  /* ---------- Field rows ---------- */
+  .field-section-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px 24px; margin-bottom: 16px; }
+  .field-section-card > h3 { font-size: 15px; color: var(--green); margin-bottom: 10px; }
+  .field-table { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .frow { display: flex; align-items: center; gap: 12px; padding: 9px 14px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .12s; font-size: 14px; }
+  .frow:last-child { border-bottom: none; }
+  .frow:hover { background: #f6faf7; }
+  .frow.off .f-label { color: var(--muted); font-weight: 500; }
+  .frow.off .f-name { opacity: .5; }
+  .f-check { position: relative; flex: 0 0 auto; }
+  .f-check input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+  .f-box { width: 19px; height: 19px; border-radius: 5px; border: 2px solid #b9c8be; background: #fff; display: flex; align-items: center; justify-content: center; transition: all .12s; }
+  .f-check input:checked + .f-box { background: var(--green); border-color: var(--green); }
+  .f-check input:checked + .f-box::after { content: "✓"; color: #fff; font-size: 11px; font-weight: 700; }
+  .f-label { flex: 1; min-width: 0; font-weight: 600; }
+  .f-name { font-size: 11px; color: var(--muted); background: #f0f3f1; padding: 2px 8px; border-radius: 6px; font-family: Consolas, monospace; white-space: nowrap; }
+  .f-order-controls { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+  .f-order-index { min-width: 22px; color: var(--muted); font-size: 12px; text-align: center; }
+  .f-order-btn { width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); cursor: pointer; }
+  .f-order-btn:disabled { opacity: .4; cursor: default; }
+  .f-req { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; font-size: 12.5px; color: var(--muted); }
+  .f-req input { width: 15px; height: 15px; accent-color: var(--green); cursor: pointer; }
+  .cp-extras { margin-top: 14px; padding: 14px; background: #f6faf7; border-radius: 10px; }
+
+  /* ---------- Consent cards ---------- */
+  .consent-card { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px 24px; margin-bottom: 14px; transition: border-color .2s; }
+  .consent-card.on { border-left-color: var(--green); }
+  .consent-card .c-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+  .consent-card .c-tag { font-size: 12px; font-weight: 600; color: var(--muted); background: #f0f3f1; padding: 3px 8px; border-radius: 4px; }
+  .consent-card .c-top .grow { flex: 1; }
+  .consent-card input[type="text"] { padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 8px; font-size: 13px; }
+  .consent-card textarea { width: 100%; min-height: 44px; padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 8px; font-size: 13px; font-family: inherit; resize: vertical; }
+  .consent-card textarea:focus, .consent-card input[type="text"]:focus { outline: none; border-color: var(--green); }
+  .c-field-row { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+  .mini-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; display: block; }
+
+  /* ---------- Buttons ---------- */
+  .btn { min-height: 40px; background: var(--green); color: #fff; border: 1px solid var(--green); padding: 9px 20px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color .15s, border-color .15s, color .15s; box-shadow: none; }
+  .btn:hover { background: var(--green-dark); border-color: var(--green-dark); }
+  .btn:disabled { background: #e5ebe7; color: #58675e; border-color: #dfe7e1; box-shadow: none; cursor: default; }
+  .btn.ghost { background: #fff; color: var(--green-dark); border: 1px solid #aebdb3; box-shadow: none; }
+  .btn.ghost:hover { background: var(--green-soft); }
+  .btn.danger { background: #fff; color: #b00; border: 1px solid #e3b3b3; box-shadow: none; padding: 6px 14px; font-size: 12.5px; }
+  .btn.danger:hover { background: #fdf0f0; }
+
+  /* ---------- Sticky nav ---------- */
+  .nav-bar { position: fixed; left: 50%; bottom: 8px; transform: translateX(-50%); width: min(1160px, calc(100% - 16px)); background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px 16px; display: flex; align-items: center; justify-content: center; gap: 12px; z-index: 50; }
+  .nav-bar .btn { min-height: 44px; }
+  .nav-bar .step-count { font-size: 13px; color: var(--muted); font-weight: 500; min-width: 112px; text-align: center; }
+
+  /* ---------- Finish / output ---------- */
+  .finish-hero { text-align: center; padding: 10px 0 22px; }
+  .finish-hero .emoji { font-size: 44px; }
+  .finish-hero h2 { color: var(--green); font-size: 22px; margin: 8px 0 6px; }
+  .finish-hero p { color: var(--muted); font-size: 14px; }
+  .summary-chips { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 16px 0 4px; }
+  .summary-chips .chip { background: var(--green-soft); color: var(--green-dark); border-radius: 999px; padding: 6px 14px; font-size: 12.5px; font-weight: 700; }
+  .outfmt { display: inline-flex; border: 1px solid #cbd6ce; border-radius: 6px; overflow: hidden; }
+  .fmt-btn { border: none; background: #fff; padding: 9px 16px; font-size: 13.5px; font-weight: 500; color: var(--muted); cursor: pointer; transition: background-color .15s, color .15s; }
+  .fmt-btn.sel { background: var(--green); color: #fff; }
+  .fmt-hint { font-size: 12.5px; color: var(--muted); margin: 8px auto 0; max-width: 560px; }
+  .output-actions { display: flex; gap: 10px; margin: 14px 0; flex-wrap: wrap; justify-content: center; }
+  #output { width: 100%; min-height: 260px; font-family: Consolas, monospace; font-size: 12px; padding: 14px; border: none; border-radius: 12px; background: #14201a; color: #c9e6d4; resize: vertical; }
+  #preview-wrap { margin-top: 14px; }
+  #preview { width: 100%; height: 620px; border: 1px solid var(--line); border-radius: 8px; background: #f5f5f5; }
+  button:focus-visible, .progress-step:focus-visible, .template-card:focus-visible, .fmt-btn:focus-visible, .f-order-btn:focus-visible, .cp-chip button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+  .f-check input:focus-visible + .f-box, .switch input:focus-visible + .slider { outline: 2px solid var(--green); outline-offset: 3px; }
+  
+  @media (max-width: 640px) {
+    .shell { padding: 18px 14px 130px; }
+    .brand { gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+    .brand .mark { width: 120px; height: 38px; }
+    .brand h1 { font-size: 19px; }
+    .brand p { max-width: 190px; font-size: 12px; }
+    .card { padding: 20px 16px; }
+    .template-card { min-height: 0; padding: 16px; }
+    .field-section-card, .consent-card { padding: 18px 14px; }
+    .nav-bar { left: 8px; right: 8px; width: auto; transform: none; padding: 7px 8px; gap: 8px; }
+    .nav-bar .step-count { min-width: 0; flex: 1; }
+    .nav-bar .btn { padding-left: 12px; padding-right: 12px; }
+    .help-block { flex-direction: column; }
+    .help-block img, .help-img-placeholder { width: 100%; max-width: 320px; min-height: 72px; }
+    .outfmt { max-width: 100%; }
+    .fmt-btn { padding: 9px 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <form id="gate-form" autocomplete="off">
+    <img class="logo" src="https://res.cloudinary.com/kvernelandgroup/image/upload/v1553022470/Kverneland-logo-transparent-bg-png-png-g18p5m0lx7.png" alt="Kverneland">
+    <h2>KVG Form Builder</h2>
+    <p>Restricted to Kverneland backend users.</p>
+    <input type="password" id="gate-password" placeholder="Password" autofocus>
+    <button type="submit" class="btn">Unlock</button>
+    <div id="gate-error" hidden>Incorrect password.</div>
+  </form>
+</div>
+
+<div class="shell" id="app" hidden>
+  <div class="brand">
+    <img class="mark" src="https://res.cloudinary.com/kvernelandgroup/image/upload/v1553022470/Kverneland-logo-transparent-bg-png-png-g18p5m0lx7.png" alt="Kverneland">
+    <div>
+      <h1>Form Builder</h1>
+      <p>Create a CRM-ready website form in a few guided steps</p>
+    </div>
+    <button type="button" class="btn ghost" id="changelog-open" aria-haspopup="dialog">What's new</button>
+  </div>
+
+  <dialog class="changelog-dialog" id="changelog-dialog" aria-labelledby="changelog-title">
+    <div class="changelog-heading">
+      <div>
+        <h2 id="changelog-title">What's new</h2>
+        <p>Recent updates to the form builder.</p>
+      </div>
+      <button type="button" class="btn ghost" id="changelog-close" aria-label="Close changelog">Close</button>
+    </div>
+    <div class="changelog-list">
+      <section>
+        <h3>20 November 2026</h3>
+        <ul>
+          <li>Updated the password gate to accept only the new configured password.</li>
+          <li>Fixed a script error that prevented the form builder from loading.</li>
+          <li>Added this changelog so updates are available from the form builder.</li>
+        </ul>
+      </section>
+      <section>
+        <h3>16 November 2026</h3>
+        <ul>
+          <li>Updated the All test and Speak to a specialist Form Capture IDs to match the supplied IDs.</li>
+        </ul>
+      </section>
+    </div>
+  </dialog>
+
+  <div class="wizard-progress" id="progress"></div>
+
+  <!-- STEP 0: Template -->
+  <div class="step" id="step-template">
+    <div class="card">
+      <div class="template-intro">
+        <span class="template-kicker">Form starter</span>
+        <h2>How would you like to start?</h2>
+        <p>Choose a template with ready-made fields, or build your own form.</p>
+      </div>
+      <div class="template-grid" id="template-choice">
+        <button type="button" class="template-card" id="use-template-btn">
+          <span class="template-tag">Ready-made fields</span>
+          <h3>Use a template</h3>
+          <p>Choose a form type and start with a field set tailored to that task.</p>
+        </button>
+        <button type="button" class="template-card" id="create-own-btn">
+          <span class="template-tag">Build your way</span>
+          <h3>Create your own</h3>
+          <p>Start with the full field list and choose exactly what your form needs.</p>
+        </button>
+      </div>
+      <div id="template-browser" hidden>
+        <button type="button" class="btn ghost" id="template-options-back" style="margin-bottom:18px">← Back to choices</button>
+        <div class="template-grid" id="template-grid"></div>
+      </div>
+      <div class="validation-banner" id="template-error" hidden>
+        <span class="vb-icon">!</span>
+        <span>Choose a starting option and select a template to continue.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 1: Basics -->
+  <div class="step" id="step-basics">
+    <div class="card">
+      <h3>Which language should the form speak?</h3>
+      <p class="sub">All labels, placeholders and consent texts are translated automatically. CRM values stay untouched.</p>
+      <div class="language-select-wrap">
+        <label for="lang-select">Form language</label>
+        <select class="language-select" id="lang-select">
+          <option value="en">🇬🇧 English</option>
+          <option value="fr">🇫🇷 Français</option>
+          <option value="de">🇩🇪 Deutsch</option>
+          <option value="es">🇪🇸 Español</option>
+          <option value="nl">🇳🇱 Nederlands</option>
+          .template-warning { display: block; margin-top: 10px; color: #7a5a20; font-size: 12px; line-height: 1.4; }
+          .template-field-pending { color: #7a5a20; font-size: 11px; }
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Connect to CRM</h3>
+      <p class="sub">The form submits directly into ClickDimensions. Template IDs are shown on their cards; custom forms use the ID entered here.</p>
+      <div class="gen-group" id="form-id-group">
+        <label for="formId">ClickDimensions Form ID <span style="color:#c62828">*</span></label>
+        <input type="text" id="formId" placeholder="e.g. aZnUHI3rMA0ist4svsbTTc">
+        <div class="field-error" id="formId-error" hidden></div>
+      </div>
+      <div id="help-formid"></div>
+    </div>
+
+    <div class="card">
+      <h3>Form texts</h3>
+      <p class="sub">Prefilled with sensible defaults — adjust if you like.</p>
+      <div class="preview-editor-layout">
+          <div>
+            <div class="gen-group">
+              <label for="title">Form title <span style="color:#c62828">*</span></label>
+              <input type="text" id="title">
+              <div class="field-error" id="title-error" hidden></div>
+            </div>
+            <div class="gen-group"><label for="subtitle">Subtitle</label><input type="text" id="subtitle"></div>
+            <div class="gen-group"><label for="intro">Intro paragraph <span style="color:#c62828">*</span></label><textarea id="intro"></textarea><div class="field-error" id="intro-error" hidden></div></div>
+          </div>
+          <div class="mini-preview">
+            <div class="mp-head"><span>Live preview</span><span class="mp-hint">Title and introduction</span></div>
+            <div class="mp-body" id="basics-preview"></div>
+          </div>
+      </div>
+      <div class="preview-editor-layout submit-preview-layout">
+          <div class="gen-group">
+            <label for="submitText">Submit button text <span style="color:#c62828">*</span></label>
+            <input type="text" id="submitText">
+            <div class="field-error" id="submitText-error" hidden></div>
+          </div>
+          <div class="mini-preview">
+            <div class="mp-head"><span>Live preview</span><span class="mp-hint">Submit button</span></div>
+            <div class="mp-body" id="submit-preview"></div>
+          </div>
+      </div>
+      <div class="gen-group template-image-group" id="template-image-group">
+        <label for="formImageUrl">Form image (Cloudinary URL)</label>
+        <input type="url" id="formImageUrl" placeholder="https://res.cloudinary.com/...">
+        <p class="field-hint">Optional. Use an HTTPS Cloudinary image URL; it will appear at the top of the generated form.</p>
+      </div>
+    </div>
+
+    <div class="card" id="links-tracking-card">
+      <h3>Links &amp; tracking</h3>
+      <p class="sub">Set the privacy policy destination and ClickDimensions tracking.</p>
+      <div class="privacy-url-row">
+        <div class="gen-group">
+          <label for="privacyUrl">Privacy policy URL <span style="color:#c62828">*</span></label>
+          <input type="text" id="privacyUrl" value="https://legal.kubota-eu.com/en/data-privacy-notice/" readonly>
+          <div class="field-error" id="privacyUrl-error" hidden></div>
+        </div>
+        <button type="button" class="btn ghost setting-lock-btn" id="privacy-url-lock-btn" aria-pressed="false">Unlock to edit</button>
+      </div>
+      <div class="switch-row" id="analytics-toggle-row">
+        <span class="s-label">ClickDimensions page analytics<span class="s-hint">Tracks page visits in CRM</span></span>
+        <label class="switch"><input type="checkbox" id="analyticsOn" checked><span class="slider"></span></label>
+      </div>
+      <div id="analytics-settings">
+        <div class="two-col">
+          <div class="gen-group"><label for="accountKey">Analytics account key</label><input type="text" id="accountKey" value="amrb2vDs10263gxpnkXIw"></div>
+          <div class="gen-group"><label for="domain">Analytics domain</label><input type="text" id="domain" value="fr.kverneland.com"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card anti-spam-card" id="anti-spam-card">
+      <h3>Anti-spam protection</h3>
+      <p class="sub">Protection is on by default. Unlock these settings only if you need to switch an option off.</p>
+      <button type="button" class="btn ghost setting-lock-btn" id="anti-spam-lock-btn" aria-pressed="false">Unlock options</button>
+      <div class="switch-row">
+        <span class="s-label">Honeypot<span class="s-hint">Hidden field that catches spam bots</span></span>
+        <label class="switch"><input type="checkbox" id="honeypotOn" checked disabled><span class="slider"></span></label>
+      </div>
+      <div class="switch-row">
+        <span class="s-label">Time trap<span class="s-hint">Blocks submits faster than 3 seconds</span></span>
+        <label class="switch"><input type="checkbox" id="timeTrapOn" checked disabled><span class="slider"></span></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Fields -->
+  <div class="step" id="step-fields">
+    <div class="card" style="padding:22px 24px">
+      <div class="fields-heading-row">
+        <h3 id="fields-step-title">Which fields should the form have?</h3>
+        <button type="button" class="btn ghost" id="request-field-btn">Request new field</button>
+      </div>
+      <p class="sub" id="fields-step-help">Choose fields and mark required fields. To customize the wording shown to visitors, click any field label in the live preview. CRM field IDs stay fixed.</p>
+      <div class="validation-banner" id="fields-error" hidden>
+        <span class="vb-icon">!</span>
+        <span>Select at least one field before continuing.</span>
+      </div>
+    </div>
+    <div class="fields-layout">
+      <div id="fields-list"></div>
+      <div class="card fields-preview-panel" style="padding:0">
+        <div class="mini-preview" style="border:none;margin-top:0">
+          <div class="mp-head"><span>Live preview</span><span class="mp-hint">Full form using selected fields</span></div>
+          <div class="mp-body" id="fields-preview"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="step" id="step-consents">
+    <div class="card" style="padding:22px 24px">
+      <h3>What should the submitter acknowledge?</h3>
+      <p class="sub">Each consent is a checkbox on the form. "Required to submit" blocks sending until ticked. For the privacy label, click Done, select one or more adjacent words, then click Confirm.</p>
+    </div>
+    <div id="consents-list"></div>
+    <div class="card" style="padding:0;overflow:hidden;margin-top:18px">
+      <div class="mini-preview" style="border:none;margin-top:0">
+        <div class="mp-head"><span>Live preview</span><span class="mp-hint">The consent section</span></div>
+        <div class="mp-body" id="consents-preview"></div>
+      </div>
+    </div>
+  </div>
+  <div class="step" id="step-people">
+    <div class="card">
+      <h3>Who can be selected as contact person?</h3>
+      <p class="sub" id="people-settings-help">Build the dropdown list shown on the form. Only pick from the known people below — the CRM code must match exactly, so no free typing.</p>
+      <p class="sub" id="persistent-people-note" hidden>Contact person is not part of this template.</p>
+      <div id="people-settings">
+      <div class="gen-group">
+        <label for="cp-name">Contact-person CRM field name <span style="font-weight:400;color:var(--muted)">(event-specific)</span></label>
+        <input type="text" id="cp-name">
+      </div>
+      <div class="mini-label">Current list</div>
+      <div class="cp-chip-row" id="cp-chips"></div>
+      <div class="cp-add">
+        <div>
+          <span class="mini-label">Person</span>
+          <select id="cp-select"></select>
+        </div>
+        <div>
+          <span class="mini-label">Label shown on the form</span>
+          <input type="text" id="cp-display" placeholder="Defaults to the person's name">
+        </div>
+        <button type="button" class="btn" id="cp-add-btn">Add</button>
+      </div>
+      <div class="mini-preview">
+        <div class="mp-head"><span>Live preview</span><span class="mp-hint">This is how the dropdown will look on the form</span></div>
+        <div class="mp-body" id="cp-preview"></div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 5: Finish -->
+  <div class="step" id="step-finish">
+    <div class="validation-banner" id="finish-errors" hidden></div>
+    <div class="card">
+      <div class="finish-hero">
+        <h2>Your form is ready</h2>
+        <p>Copy the code below and paste it into an HTML block in the CMS.</p>
+        <div class="summary-chips" id="summary-chips"></div>
+      </div>
+      <div class="gen-group" style="text-align:center;margin-bottom:4px">
+        <span class="mini-label" style="display:block;margin-bottom:8px">Output format</span>
+        <div class="outfmt" id="outfmt">
+          <button type="button" class="fmt-btn" data-fmt="cms">CMS block (eZ Publish safe)</button>
+          <button type="button" class="fmt-btn" data-fmt="full">Full HTML page</button>
+        </div>
+        <p class="fmt-hint" id="fmt-hint"></p>
+      </div>
+      <div class="output-actions">
+        <button type="button" class="btn" id="copy-btn">Copy HTML</button>
+        <button type="button" class="btn ghost" id="download-btn">Download .html</button>
+      </div>
+      <div class="mini-preview" style="margin-top:0;margin-bottom:18px">
+        <div class="mp-head"><span>Full form preview</span><span class="mp-hint">Exactly what you are copying</span></div>
+        <div class="mp-body" id="finish-preview"></div>
+      </div>
+      <textarea id="output" readonly spellcheck="false"></textarea>
+    </div>
+    <div class="card" style="text-align:center">
+      <p style="font-size:13.5px;color:var(--muted)">Need changes? Jump back to any step using the progress bar above — the code updates instantly.</p>
+    </div>
+  </div>
+</div>
+
+<div class="nav-bar" id="nav-bar" hidden>
+  <button type="button" class="btn ghost" id="back-btn">← Back</button>
+  <span class="step-count" id="step-count"></span>
+  <button type="button" class="btn" id="next-btn">Continue →</button>
+</div>
+
+<script>
+'use strict';
+
+/* ================= Password gate ================= */
+const PASSWORD_HASHES = [
+  '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918'
+];
+
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+document.getElementById('gate-form').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const hash = await sha256Hex(document.getElementById('gate-password').value);
+  if (PASSWORD_HASHES.includes(hash)) {
+    sessionStorage.setItem('kvgGenUnlocked', '1');
+    unlock();
+  } else {
+    document.getElementById('gate-error').hidden = false;
+  }
+});
+
+function unlock() {
+  document.getElementById('gate').remove();
+  document.getElementById('app').hidden = false;
+  document.getElementById('nav-bar').hidden = false;
+}
+if (sessionStorage.getItem('kvgGenUnlocked') === '1') unlock();
+
+const changelogDialog = document.getElementById('changelog-dialog');
+document.getElementById('changelog-open').addEventListener('click', function () {
+  changelogDialog.showModal();
+});
+document.getElementById('changelog-close').addEventListener('click', function () {
+  changelogDialog.close();
+});
+
+/* ================= Help images ================= */
+const HELP_IMAGES = { formId: '' };
+
+/* ================= Standardized field definitions ================= */
+/* name = exact CRM field ID. Do not change unless CRM changes. */
+const FIELD_DEFS = [
+  { key: 'firstname',      id: 'firstname',        name: 'firstname',                          section: 'contact',    type: 'text',     ac: 'given-name',        en: true, req: false },
+  { key: 'lastname',       id: 'last-name',        name: 'Last Name',                          section: 'contact',    type: 'text',     ac: 'family-name',       en: true, req: true  },
+  { key: 'email',          id: 'email-address',    name: 'Email Address',                      section: 'contact',    type: 'email',    ac: 'email',             en: true, req: true  },
+  { key: 'phone',          id: 'phone-number',     name: 'Phone number',                       section: 'contact',    type: 'tel',      ac: 'tel',               en: true, req: false },
+  { key: 'company',        id: 'company-name',     name: 'Company name',                       section: 'contact',    type: 'text',     ac: 'organization',      en: true, req: true  },
+  { key: 'street',         id: 'street',           name: 'street',                             section: 'contact',    type: 'text',     ac: 'street-address',    en: true, req: false },
+  { key: 'housenumber',    id: 'house-number',     name: 'House Number',                       section: 'contact',    type: 'text',     ac: 'address-line2',     en: true, req: false },
+  { key: 'postalcode',     id: 'postal-code',      name: 'Postal Code',                        section: 'contact',    type: 'text',     ac: 'postal-code',       en: true, req: true  },
+  { key: 'country',         id: 'country',          name: 'Country',                            section: 'contact',    type: 'select',   options: 'country',     en: false, req: false },
+  { key: 'city',           id: 'city',             name: 'City',                               section: 'contact',    type: 'text',     ac: 'address-level2',    en: true, req: false },
+  { key: 'customerchecks', id: 'already-customer', name: 'Already_Kverneland_Vicon_customer',  section: 'profile',    type: 'checkboxes',                        en: true, req: true  },
+  { key: 'activity',       id: 'activity',         name: 'Activity',                           section: 'profile',    type: 'select',   options: 'activity',     en: true, req: true  },
+  { key: 'jobtitle',       id: 'job-title',        name: 'Job title',                          section: 'profile',    type: 'text',     ac: 'organization-title', en: true, req: false },
+  { key: 'product',        id: 'product-interest', name: 'Product_Interest_1',                 section: 'interests',  type: 'select',   options: 'product',      en: true, req: true  },
+  { key: 'productinterest', id: 'product-interest-general', name: 'Product_Interest',          section: 'interests',  type: 'select',   options: 'product',      en: false, req: false },
+  { key: 'brand',          id: 'brand-interest',   name: 'Brand_Interest_1',                   section: 'interests',  type: 'select',   options: 'brand',        en: true, req: true  },
+  { key: 'reason',         id: 'contact-reason',   name: 'Contact_Reason',                     section: 'assistance', type: 'select',   options: 'reason',       en: true, req: true  },
+  { key: 'timeframe',      id: 'purchase-timeframe', name: 'Purchase timeframe',               section: 'assistance', type: 'select',   options: 'timeframe',    en: true, req: false },
+  { key: 'dealer',         id: 'local-dealer',     name: 'Local Dealer',                       section: 'assistance', type: 'text',                              en: true, req: false },
+  { key: 'marketingmaterial', id: 'marketing-material-type', name: 'Marketing_Material_Type',   section: 'interests',  type: 'select',   options: 'marketingMaterials', en: false, req: false, proposed: true },
+  { key: 'comments',       id: 'comments',         name: 'Comments',                           section: 'request',    type: 'textarea',                          en: true, req: false },
+  { key: 'contactperson',  id: 'contact-person',   name: 'Contact_Person_InnovAgri_2026',      section: 'request',    type: 'contactperson',                     en: true, req: true  },
+];
+
+const SECTION_ORDER = ['contact', 'profile', 'interests', 'assistance', 'request'];
+
+const FORM_TEMPLATES = [
+  {
+    id: 'all-test',
+    formId: 'aUJCKrU5cUCrBATSPZK2A',
+    title: 'All test',
+    subtitle: 'All inquiry types and marketing materials',
+    description: 'Test dealer, specialist, quotation, brochure, information and manual requests in one form.',
+    category: 'Full test',
+    fields: ['firstname', 'lastname', 'email', 'phone', 'company', 'street', 'housenumber', 'postalcode', 'country', 'city', 'customerchecks', 'activity', 'jobtitle', 'product', 'productinterest', 'brand', 'reason', 'timeframe', 'dealer', 'marketingmaterial', 'comments'],
+    required: ['firstname', 'lastname', 'email', 'company', 'postalcode', 'country', 'reason'],
+    optionSets: { reason: 'inquiryTypes' },
+    requiresCrmFieldSetup: true
+  },
+  {
+    id: 'contact-dealer',
+    formId: 'amsvL4rr570a2HobXgPpVS',
+    title: 'Contact a dealer',
+    subtitle: 'Get in touch with your local dealer',
+    description: 'Collect contact and product details for a dealer follow-up.',
+    category: 'Dealer enquiry',
+    fields: ['firstname', 'lastname', 'email', 'phone', 'company', 'postalcode', 'country', 'city', 'activity', 'product', 'brand', 'reason', 'dealer', 'comments'],
+    required: ['firstname', 'lastname', 'email', 'company', 'postalcode', 'country', 'product', 'reason'],
+    optionSets: { reason: 'dealerRequest' }
+  },
+  {
+    id: 'speak-specialist',
+    formId: 'aBjcID4M5h0CGWLyHqaWEZ',
+    title: 'Speak to a specialist',
+    subtitle: 'Get advice from a product specialist',
+    description: 'Collect contact, activity and product details for a specialist follow-up.',
+    category: 'Specialist enquiry',
+    fields: ['firstname', 'lastname', 'email', 'phone', 'company', 'postalcode', 'country', 'city', 'activity', 'product', 'brand', 'reason', 'timeframe', 'comments'],
+    required: ['firstname', 'lastname', 'email', 'country', 'product', 'reason'],
+    optionSets: { reason: 'specialistRequest' }
+  },
+  {
+    id: 'get-quotation',
+    formId: 'a35LfOLrkufN3TaeTaw2A',
+    title: 'Get a quotation',
+    subtitle: 'Request pricing for Kverneland or Vicon products',
+    description: 'Collect product, company and timing details for a quotation.',
+    category: 'Quotation',
+    fields: ['firstname', 'lastname', 'email', 'phone', 'company', 'postalcode', 'country', 'city', 'activity', 'product', 'brand', 'reason', 'timeframe', 'dealer', 'comments'],
+    required: ['firstname', 'lastname', 'email', 'company', 'country', 'product', 'brand', 'reason'],
+    optionSets: { reason: 'quotationRequest' }
+  },
+];
+
+const OPTION_SETS = {
+  activity:  ['Farmer', 'Contractor', 'Journalist', 'Dealer', 'Purchaser', 'Employee', 'Student', 'Other'],
+  product:   ['Ploughs', 'Tillage Tools', 'Seeders', 'Sprayers', 'Fertiliser Spreaders', 'Weeders', 'Precision Farming Solutions', 'Mergers', 'Rakes', 'Mowers', 'Tedders', 'Balers', 'Wrappers', 'Choppers', 'Bale Choppers'],
+  brand:     ['Kverneland', 'Vicon'],
+    reason:    ['Quotation', 'Demo', 'Info Material', 'Contact', 'Technical issue', 'Other'],
+    dealerRequest: ['Contact'],
+    specialistRequest: ['Demo'],
+    quotationRequest: ['Quotation'],
+    inquiryTypes: ['Contact', 'Demo', 'Quotation', 'Brochure', 'Info Material', 'Manuals'],
+    marketingMaterials: ['Brochure', 'Information', 'Manuals'],
+  timeframe: ['Immediate', 'This Quarter', 'Next Quarter', 'This Year', 'Unknown'],
+  country: ['France', 'Spain', 'United Kingdom', 'Netherlands'],
+};
+
+/* ================= Language packs ================= */
+const LANG = {
+  fr: {
+    selectPlaceholder: 'Veuillez sélectionner',
+    sections: { contact: 'Vos coordonnées', profile: 'Vous êtes...', interests: 'Ce qui vous intéresse', assistance: 'Comment pouvons-nous vous aider ?', request: 'Votre demande', consents: 'Vos préférences de communication' },
+    labels: {
+      firstname: 'Prénom', lastname: 'Nom', email: 'Adresse mail', phone: 'Téléphone', country: 'Pays', productinterest: 'Quel produit vous intéresse ?',
+      company: 'Entreprise / exploitation', street: 'Rue', housenumber: 'Numéro', postalcode: 'Code postal', city: 'Ville',
+      customerchecks: 'Êtes-vous déjà client Kverneland / Vicon ?', activity: 'Quelle est votre activité ?', jobtitle: "Votre rôle dans l'entreprise",
+      product: 'Quelle gamme vous intéresse ?', brand: 'Quelle marque vous intéresse ?',
+      reason: 'Pour quelle raison souhaitez-vous nous contacter ?', timeframe: 'À quel horizon envisagez-vous votre projet ?',
+      dealer: 'Avez-vous un concessionnaire habituel ? Si oui, lequel ?', comments: 'Décrivez-nous votre projet, votre besoin ou votre demande',
+      contactperson: 'Votre interlocuteur sur le salon', marketingmaterial: 'Quel type de support souhaitez-vous recevoir ?'
+    },
+    placeholders: {
+      firstname: 'Votre prénom', lastname: 'Votre nom', email: 'votre@email.com', phone: 'Votre numéro de téléphone',
+      company: 'Votre entreprise ou exploitation', street: 'Nom de la rue', housenumber: 'Numéro', postalcode: 'Code postal',
+      city: 'Ville', jobtitle: 'Votre fonction', dealer: 'Nom du concessionnaire', comments: 'Votre message'
+    },
+    options: {
+      activity: { 'Farmer': 'Agriculteur / exploitant agricole', 'Contractor': 'ETA', 'Journalist': 'Journaliste', 'Dealer': 'Concessionnaire', 'Purchaser': 'Acheteur', 'Employee': 'Employé', 'Student': 'Étudiant', 'Other': 'Autre' },
+      product: { 'Ploughs': 'Charrues', 'Tillage Tools': 'Outils de travail du sol', 'Seeders': 'Semoirs', 'Sprayers': 'Pulvérisateurs', 'Fertiliser Spreaders': "Distributeurs d'engrais", 'Weeders': 'Désherbage mécanique', 'Precision Farming Solutions': 'Agriculture de précision', 'Mergers': 'Andaineurs à tapis', 'Rakes': 'Andaineurs', 'Mowers': 'Faucheuses', 'Tedders': 'Faneuses', 'Balers': 'Presses à balles rondes', 'Wrappers': 'Enrubanneuses', 'Choppers': 'Broyeurs', 'Bale Choppers': 'Pailleuses distributrices' },
+      brand: { 'Kverneland': 'Kverneland', 'Vicon': 'Vicon' },
+      reason: { 'Quotation': 'Demander un devis', 'Demo': 'Organiser une démonstration', 'Info Material': 'Recevoir des informations sur un produit', 'Contact': 'Être recontacté par un commercial', 'Technical issue': 'Poser une question technique / demander un support', 'Other': 'Autre' },
+      timeframe: { 'Immediate': 'Dès maintenant', 'This Quarter': 'Dans les trois mois', 'Next Quarter': '3 à 6 mois', 'This Year': '6 à 12 mois', 'Unknown': 'Je ne sais pas' },
+      country: { 'United Kingdom': 'Royaume-Uni', France: 'France', Spain: 'Espagne', Netherlands: 'Pays-Bas' },
+      dealerRequest: { Contact: 'Être recontacté par un concessionnaire' },
+      specialistRequest: { Demo: 'Organiser une démonstration' },
+      quotationRequest: { Quotation: 'Demander un devis' },
+      inquiryTypes: { Contact: 'Contacter un concessionnaire', Demo: 'Demander une démonstration', Quotation: 'Demander un devis', Brochure: 'Recevoir une brochure', 'Info Material': 'Recevoir des informations', Manuals: 'Recevoir des manuels' },
+      marketingMaterials: { Brochure: 'Brochure', Information: 'Informations', Manuals: 'Manuels' },
+      customer: { 'No': 'Non' }
+    },
+    defaults: {
+      title: 'Innov-Agri 2026', subtitle: 'Formulaire de contact',
+      intro: "Un projet, une question technique ou simplement besoin d'informations ? Dites-nous ce qui vous intéresse et notre équipe vous accompagnera dans votre démarche.",
+      submit: 'Je valide ma demande.'
+    },
+    newsletter: {
+      message: "Restez connecté à l'univers Kverneland Group ! Cochez la case ci-dessous pour continuer à recevoir nos actualités et ne rien manquer : nouveaux produits exclusifs, offres spéciales et invitations à nos prochains événements. Une expérience unique vous attend !",
+      label: "Oui, j'accepte."
+    },
+    privacy: { text: 'J\'accepte les conditions générales et la {link}', linkText: 'politique de confidentialité' },
+    formNote: 'Vous pouvez vous désabonner à tout moment. Consultez notre {link}.'
+  },
+  en: {
+    selectPlaceholder: 'Please select',
+    sections: { contact: 'Your contact details', profile: 'About you', interests: 'Your interests', assistance: 'How can we help you?', request: 'Your request', consents: 'Your communication preferences' },
+    labels: {
+      firstname: 'First name', lastname: 'Last name', email: 'Email address', phone: 'Phone', country: 'Country', productinterest: 'Which product are you interested in?',
+      company: 'Company / farm', street: 'Street', housenumber: 'Number', postalcode: 'Postal code', city: 'City',
+      customerchecks: 'Are you already a Kverneland / Vicon customer?', activity: 'What is your activity?', jobtitle: 'Your role in the company',
+      product: 'Which product range are you interested in?', brand: 'Which brand are you interested in?',
+      reason: 'Why do you want to contact us?', timeframe: 'What is the timeline for your project?',
+      dealer: 'Do you have a regular dealer? If so, which one?', comments: 'Describe your project, your need or your request',
+      contactperson: 'Your contact person at the event', marketingmaterial: 'Which marketing material would you like to receive?'
+    },
+    placeholders: {
+      firstname: 'Your first name', lastname: 'Your last name', email: 'you@email.com', phone: 'Your phone number',
+      company: 'Your company or farm', street: 'Street name', housenumber: 'Number', postalcode: 'Postal code',
+      city: 'City', jobtitle: 'Your role', dealer: 'Dealer name', comments: 'Your message'
+    },
+    options: {
+      activity: { 'Farmer': 'Farmer', 'Contractor': 'Contractor', 'Journalist': 'Journalist', 'Dealer': 'Dealer', 'Purchaser': 'Purchaser', 'Employee': 'Employee', 'Student': 'Student', 'Other': 'Other' },
+      product: { 'Ploughs': 'Ploughs', 'Tillage Tools': 'Tillage tools', 'Seeders': 'Seeders', 'Sprayers': 'Sprayers', 'Fertiliser Spreaders': 'Fertiliser spreaders', 'Weeders': 'Mechanical weeding', 'Precision Farming Solutions': 'Precision farming solutions', 'Mergers': 'Mergers', 'Rakes': 'Rakes', 'Mowers': 'Mowers', 'Tedders': 'Tedders', 'Balers': 'Round balers', 'Wrappers': 'Wrappers', 'Choppers': 'Choppers', 'Bale Choppers': 'Bale choppers' },
+      brand: { 'Kverneland': 'Kverneland', 'Vicon': 'Vicon' },
+      reason: { 'Quotation': 'Request a quotation', 'Demo': 'Arrange a demonstration', 'Info Material': 'Receive product information', 'Contact': 'Be contacted by a sales representative', 'Technical issue': 'Ask a technical question / request support', 'Other': 'Other' },
+      timeframe: { 'Immediate': 'Right now', 'This Quarter': 'Within the next three months', 'Next Quarter': '3 to 6 months', 'This Year': '6 to 12 months', 'Unknown': "I don't know" },
+      country: { 'United Kingdom': 'United Kingdom', France: 'France', Spain: 'Spain', Netherlands: 'Netherlands' },
+        dealerRequest: { Contact: 'Contact a dealer' },
+        specialistRequest: { Demo: 'Request a demonstration' },
+        quotationRequest: { Quotation: 'Request a quotation' },
+        inquiryTypes: { Contact: 'Contact a dealer', Demo: 'Request a demonstration', Quotation: 'Request a quotation', Brochure: 'Request a brochure', 'Info Material': 'Request information', Manuals: 'Request manuals' },
+        marketingMaterials: { Brochure: 'Brochure', Information: 'Information', Manuals: 'Manuals' },
+      customer: { 'No': 'No' }
+    },
+    defaults: {
+      title: 'Innov-Agri 2026', subtitle: 'Contact form',
+      intro: 'A project, a technical question or simply need information? Tell us what interests you and our team will support you.',
+      submit: 'Submit my request.'
+    },
+    newsletter: {
+      message: 'Stay connected to the Kverneland Group world! Tick the box below to keep receiving our news and never miss a thing: exclusive new products, special offers and invitations to our upcoming events. A unique experience awaits you!',
+      label: 'Yes, I agree.'
+    },
+    privacy: { text: 'I accept the terms and conditions and the {link}', linkText: 'privacy policy' },
+    formNote: 'You can unsubscribe at any time. See our {link}.'
+  },
+  de: {
+    selectPlaceholder: 'Bitte auswählen',
+    sections: { contact: 'Ihre Kontaktdaten', profile: 'Über Sie', interests: 'Ihre Interessen', assistance: 'Wie können wir Ihnen helfen?', request: 'Ihre Anfrage', consents: 'Ihre Kommunikationseinstellungen' },
+    labels: {
+      firstname: 'Vorname', lastname: 'Nachname', email: 'E-Mail-Adresse', phone: 'Telefon', country: 'Land', productinterest: 'Für welches Produkt interessieren Sie sich?',
+      company: 'Firma / Betrieb', street: 'Straße', housenumber: 'Hausnummer', postalcode: 'Postleitzahl', city: 'Stadt',
+      customerchecks: 'Sind Sie bereits Kverneland / Vicon Kunde?', activity: 'Was ist Ihre Tätigkeit?', jobtitle: 'Ihre Position im Unternehmen',
+      product: 'Welche Produktgruppe interessiert Sie?', brand: 'Welche Marke interessiert Sie?',
+      reason: 'Warum möchten Sie uns kontaktieren?', timeframe: 'In welchem Zeitraum planen Sie Ihr Projekt?',
+      dealer: 'Haben Sie einen Stammhändler? Wenn ja, welchen?', comments: 'Beschreiben Sie uns Ihr Projekt, Ihren Bedarf oder Ihre Anfrage',
+      contactperson: 'Ihr Ansprechpartner auf der Messe'
+      ,marketingmaterial: 'Welches Informationsmaterial möchten Sie erhalten?'
+    },
+    placeholders: {
+      firstname: 'Ihr Vorname', lastname: 'Ihr Nachname', email: 'ihre@email.de', phone: 'Ihre Telefonnummer',
+      company: 'Ihre Firma oder Ihr Betrieb', street: 'Straßenname', housenumber: 'Nr.', postalcode: 'Postleitzahl',
+      city: 'Stadt', jobtitle: 'Ihre Position', dealer: 'Händlername', comments: 'Ihre Nachricht'
+    },
+    options: {
+      activity: { 'Farmer': 'Landwirt', 'Contractor': 'Lohnunternehmer', 'Journalist': 'Journalist', 'Dealer': 'Händler', 'Purchaser': 'Einkäufer', 'Employee': 'Mitarbeiter', 'Student': 'Student', 'Other': 'Sonstiges' },
+      product: { 'Ploughs': 'Pflüge', 'Tillage Tools': 'Bodenbearbeitungsgeräte', 'Seeders': 'Sämaschinen', 'Sprayers': 'Pflanzenschutzspritzen', 'Fertiliser Spreaders': 'Düngerstreuer', 'Weeders': 'Mechanische Unkrautbekämpfung', 'Precision Farming Solutions': 'Präzisionslandwirtschaft', 'Mergers': 'Bandschwader', 'Rakes': 'Schwader', 'Mowers': 'Mähwerke', 'Tedders': 'Wender', 'Balers': 'Rundballenpressen', 'Wrappers': 'Ballenwickler', 'Choppers': 'Häcksler', 'Bale Choppers': 'Ballenauflöser' },
+      brand: { 'Kverneland': 'Kverneland', 'Vicon': 'Vicon' },
+      reason: { 'Quotation': 'Angebot anfordern', 'Demo': 'Eine Vorführung organisieren', 'Info Material': 'Produktinformationen erhalten', 'Contact': 'Von einem Vertriebsmitarbeiter kontaktiert werden', 'Technical issue': 'Technische Frage stellen / Support anfordern', 'Other': 'Sonstiges' },
+      timeframe: { 'Immediate': 'Ab sofort', 'This Quarter': 'Innerhalb der nächsten drei Monate', 'Next Quarter': '3 bis 6 Monate', 'This Year': '6 bis 12 Monate', 'Unknown': 'Ich weiß es nicht' },
+      country: { 'United Kingdom': 'Vereinigtes Königreich', France: 'Frankreich', Spain: 'Spanien', Netherlands: 'Niederlande' },
+        dealerRequest: { Contact: 'Einen Händler kontaktieren' },
+        specialistRequest: { Demo: 'Eine Vorführung anfragen' },
+        quotationRequest: { Quotation: 'Angebot anfordern' },
+        inquiryTypes: { Contact: 'Einen Händler kontaktieren', Demo: 'Eine Vorführung anfragen', Quotation: 'Angebot anfordern', Brochure: 'Eine Broschüre anfordern', 'Info Material': 'Informationen anfordern', Manuals: 'Handbücher anfordern' },
+        marketingMaterials: { Brochure: 'Broschüre', Information: 'Informationen', Manuals: 'Handbücher' },
+      customer: { 'No': 'Nein' }
+    },
+    defaults: {
+      title: 'Innov-Agri 2026', subtitle: 'Kontaktformular',
+      intro: 'Ein Projekt, eine technische Frage oder einfach Informationsbedarf? Sagen Sie uns, was Sie interessiert – unser Team begleitet Sie.',
+      submit: 'Anfrage absenden.'
+    },
+    newsletter: {
+      message: 'Bleiben Sie mit der Welt der Kverneland Group verbunden! Setzen Sie unten das Häkchen, um weiterhin unsere Neuigkeiten zu erhalten und nichts zu verpassen: exklusive neue Produkte, Sonderangebote und Einladungen zu kommenden Veranstaltungen. Ein einzigartiges Erlebnis erwartet Sie!',
+      label: 'Ja, ich stimme zu.'
+    },
+    privacy: { text: 'Ich akzeptiere die Allgemeinen Geschäftsbedingungen und die {link}', linkText: 'Datenschutzerklärung' },
+    formNote: 'Sie können sich jederzeit abmelden. Lesen Sie unsere {link}.'
+  },
+  es: {
+    selectPlaceholder: 'Seleccione una opción',
+    sections: { contact: 'Datos de contacto', profile: 'Sobre usted', interests: 'Sus intereses', assistance: '¿Cómo podemos ayudarle?', request: 'Su solicitud', consents: 'Preferencias de comunicación' },
+    labels: { firstname: 'Nombre', lastname: 'Apellidos', email: 'Correo electrónico', phone: 'Teléfono', country: 'País', productinterest: '¿Qué producto le interesa?', company: 'Empresa / explotación', street: 'Calle', housenumber: 'Número', postalcode: 'Código postal', city: 'Ciudad', customerchecks: '¿Ya es cliente de Kverneland / Vicon?', activity: '¿Cuál es su actividad?', jobtitle: 'Su cargo en la empresa', product: '¿Qué gama de productos le interesa?', brand: '¿Qué marca le interesa?', reason: '¿Por qué motivo desea contactarnos?', timeframe: '¿Cuál es el plazo previsto para su proyecto?', dealer: '¿Tiene un concesionario habitual? ¿Cuál?', marketingmaterial: '¿Qué material desea recibir?', comments: 'Describa su proyecto, necesidad o consulta', contactperson: 'Su contacto en el evento' },
+    placeholders: { firstname: 'Su nombre', lastname: 'Sus apellidos', email: 'usted@correo.com', phone: 'Su teléfono', company: 'Empresa o explotación', street: 'Nombre de la calle', housenumber: 'Número', postalcode: 'Código postal', city: 'Ciudad', jobtitle: 'Su cargo', dealer: 'Nombre del concesionario', comments: 'Su mensaje' },
+    options: {
+      activity: { Farmer: 'Agricultor', Contractor: 'Contratista', Journalist: 'Periodista', Dealer: 'Concesionario', Purchaser: 'Comprador', Employee: 'Empleado', Student: 'Estudiante', Other: 'Otro' },
+      product: { Ploughs: 'Arados', 'Tillage Tools': 'Equipos de laboreo', Seeders: 'Sembradoras', Sprayers: 'Pulverizadores', 'Fertiliser Spreaders': 'Abonadoras', Weeders: 'Escardadoras', 'Precision Farming Solutions': 'Agricultura de precisión', Mergers: 'Hileradores de cinta', Rakes: 'Rastrillos', Mowers: 'Segadoras', Tedders: 'Henificadores', Balers: 'Empacadoras', Wrappers: 'Envolvedoras', Choppers: 'Trituradoras', 'Bale Choppers': 'Desmenuzadoras de pacas' },
+      brand: { Kverneland: 'Kverneland', Vicon: 'Vicon' },
+      reason: { Quotation: 'Solicitar un presupuesto', Demo: 'Solicitar una demostración', 'Info Material': 'Recibir información del producto', Contact: 'Que me contacte un representante comercial', 'Technical issue': 'Realizar una consulta técnica / solicitar asistencia', Other: 'Otro' },
+      timeframe: { Immediate: 'Lo antes posible', 'This Quarter': 'En los próximos tres meses', 'Next Quarter': 'De 3 a 6 meses', 'This Year': 'De 6 a 12 meses', Unknown: 'No lo sé' },
+      country: { 'United Kingdom': 'Reino Unido', France: 'Francia', Spain: 'España', Netherlands: 'Países Bajos' },
+      dealerRequest: { Contact: 'Contactar con un concesionario' }, specialistRequest: { Demo: 'Solicitar una demostración' }, quotationRequest: { Quotation: 'Solicitar un presupuesto' },
+      inquiryTypes: { Contact: 'Contactar con un concesionario', Demo: 'Solicitar una demostración', Quotation: 'Solicitar un presupuesto', Brochure: 'Solicitar un folleto', 'Info Material': 'Solicitar información', Manuals: 'Solicitar manuales' },
+      marketingMaterials: { Brochure: 'Folleto', Information: 'Información', Manuals: 'Manuales' }, customer: { No: 'No' }
+    },
+    defaults: { title: 'Innov-Agri 2026', subtitle: 'Formulario de contacto', intro: '¿Tiene un proyecto, una pregunta técnica o necesita información? Cuéntenos qué le interesa y nuestro equipo le ayudará.', submit: 'Enviar solicitud.' },
+    newsletter: { message: 'Manténgase al día con Kverneland Group. Marque la casilla para recibir novedades, productos, ofertas e invitaciones a próximos eventos.', label: 'Sí, acepto.' },
+    privacy: { text: 'Acepto los términos y condiciones y la {link}', linkText: 'política de privacidad' },
+    formNote: 'Puede darse de baja en cualquier momento. Consulte nuestra {link}.'
+  },
+  nl: {
+    selectPlaceholder: 'Selecteer een optie',
+    sections: { contact: 'Uw contactgegevens', profile: 'Over u', interests: 'Uw interesses', assistance: 'Hoe kunnen we u helpen?', request: 'Uw aanvraag', consents: 'Uw communicatievoorkeuren' },
+    labels: { firstname: 'Voornaam', lastname: 'Achternaam', email: 'E-mailadres', phone: 'Telefoon', country: 'Land', productinterest: 'In welk product bent u geïnteresseerd?', company: 'Bedrijf / landbouwbedrijf', street: 'Straat', housenumber: 'Huisnummer', postalcode: 'Postcode', city: 'Plaats', customerchecks: 'Bent u al klant van Kverneland / Vicon?', activity: 'Wat is uw activiteit?', jobtitle: 'Uw functie binnen het bedrijf', product: 'In welke productgroep bent u geïnteresseerd?', brand: 'In welk merk bent u geïnteresseerd?', reason: 'Waarom wilt u contact met ons opnemen?', timeframe: 'Wat is de planning voor uw project?', dealer: 'Heeft u een vaste dealer? Zo ja, welke?', marketingmaterial: 'Welk materiaal wilt u ontvangen?', comments: 'Beschrijf uw project, behoefte of vraag', contactperson: 'Uw contactpersoon op het evenement' },
+    placeholders: { firstname: 'Uw voornaam', lastname: 'Uw achternaam', email: 'u@e-mail.nl', phone: 'Uw telefoonnummer', company: 'Uw bedrijf of landbouwbedrijf', street: 'Straatnaam', housenumber: 'Huisnummer', postalcode: 'Postcode', city: 'Plaats', jobtitle: 'Uw functie', dealer: 'Naam van de dealer', comments: 'Uw bericht' },
+    options: {
+      activity: { Farmer: 'Landbouwer', Contractor: 'Loonwerker', Journalist: 'Journalist', Dealer: 'Dealer', Purchaser: 'Inkoper', Employee: 'Medewerker', Student: 'Student', Other: 'Anders' },
+      product: { Ploughs: 'Ploegen', 'Tillage Tools': 'Grondbewerkingsmachines', Seeders: 'Zaaimachines', Sprayers: 'Veldspuiten', 'Fertiliser Spreaders': 'Kunstmeststrooiers', Weeders: 'Mechanische onkruidbestrijding', 'Precision Farming Solutions': 'Precisielandbouw', Mergers: 'Bandenharken', Rakes: 'Harken', Mowers: 'Maaiers', Tedders: 'Schudders', Balers: 'Ronde balenpersen', Wrappers: 'Wikkelaars', Choppers: 'Versnipperaars', 'Bale Choppers': 'Balenversnijders' },
+      brand: { Kverneland: 'Kverneland', Vicon: 'Vicon' },
+      reason: { Quotation: 'Een offerte aanvragen', Demo: 'Een demonstratie aanvragen', 'Info Material': 'Productinformatie ontvangen', Contact: 'Contact door een verkoopmedewerker', 'Technical issue': 'Een technische vraag stellen / ondersteuning aanvragen', Other: 'Anders' },
+      timeframe: { Immediate: 'Zo snel mogelijk', 'This Quarter': 'Binnen drie maanden', 'Next Quarter': 'Over 3 tot 6 maanden', 'This Year': 'Over 6 tot 12 maanden', Unknown: 'Weet ik nog niet' },
+      country: { 'United Kingdom': 'Verenigd Koninkrijk', France: 'Frankrijk', Spain: 'Spanje', Netherlands: 'Nederland' },
+      dealerRequest: { Contact: 'Contact opnemen met een dealer' }, specialistRequest: { Demo: 'Een demonstratie aanvragen' }, quotationRequest: { Quotation: 'Een offerte aanvragen' },
+      inquiryTypes: { Contact: 'Contact opnemen met een dealer', Demo: 'Een demonstratie aanvragen', Quotation: 'Een offerte aanvragen', Brochure: 'Een brochure aanvragen', 'Info Material': 'Informatie aanvragen', Manuals: 'Handleidingen aanvragen' },
+      marketingMaterials: { Brochure: 'Brochure', Information: 'Informatie', Manuals: 'Handleidingen' }, customer: { No: 'Nee' }
+    },
+    defaults: { title: 'Innov-Agri 2026', subtitle: 'Contactformulier', intro: 'Heeft u een project, technische vraag of behoefte aan informatie? Vertel ons waar u in geïnteresseerd bent, dan helpt ons team u verder.', submit: 'Verstuur mijn aanvraag.' },
+    newsletter: { message: 'Blijf op de hoogte van Kverneland Group. Vink het vakje aan voor nieuws over producten, aanbiedingen en evenementen.', label: 'Ja, ik ga akkoord.' },
+    privacy: { text: 'Ik ga akkoord met de algemene voorwaarden en het {link}', linkText: 'privacybeleid' },
+    formNote: 'U kunt zich op elk moment afmelden. Bekijk ons {link}.'
+  }
+};
+
+const PRIVACY_URLS = {
+  en: 'https://legal.kubota-eu.com/en/data-privacy-notice/',
+  fr: 'https://legal.kubota-eu.com/fr/avis-de-confidentialite-des-donnees/',
+  de: 'https://legal.kubota-eu.com/de/datenschutzhinweis/',
+  es: 'https://legal.kubota-eu.com/es/aviso-de-privacidad-de-datos/',
+  nl: 'https://legal.kubota-eu.com/nl/privacyverklaring/'
+};
+
+/* ================= State ================= */
+const state = {
+  lang: 'en',
+  fields: {},
+  startChoice: '',
+  formMode: 'choose',
+  selectedTemplate: '',
+  persistentCountry: '',
+  fieldLabels: {},
+  cpName: 'Contact_Person_InnovAgri_2026',
+  outputMode: 'cms',
+  consents: []
+};
+let consentSeq = 0;
+
+FIELD_DEFS.forEach(d => { state.fields[d.key] = { enabled: d.en, required: d.req }; });
+state.fieldOrder = FIELD_DEFS.map(d => d.key);
+
+function orderedFieldDefs(defs) {
+  return defs.slice().sort((left, right) => state.fieldOrder.indexOf(left.key) - state.fieldOrder.indexOf(right.key));
+}
+
+/* Contact-person list, stored as an array of { value, label }. */
+let cpPeople = [];
+
+/* The master list of known people the contact-person dropdown may contain.
+   Users can only pick from these — no free typing of CRM codes. */
+const CP_MASTER = [
+  { value: 'QR code', label: "J'ai scanné un QR Code" },
+  { value: 'Terrako', label: 'Terrako' },
+  { value: 'ALG', label: 'Anne-Laure' }, { value: 'ARO', label: 'Antoine' },
+  { value: 'ACH', label: 'Aurélien' }, { value: 'BLO', label: 'Baptiste' },
+  { value: 'BFI', label: 'Brieuc' }, { value: 'CLE', label: 'Clément' },
+  { value: 'FAD', label: 'Franck' }, { value: 'FDE', label: 'Florient' },
+  { value: 'GGR', label: 'Guillaume' }, { value: 'GHU', label: 'Gwendal' },
+  { value: 'HCH', label: 'Hugues' }, { value: 'KBR', label: 'Kimberley' },
+  { value: 'MBE', label: 'Manon' }, { value: 'PGA', label: 'Philippe' },
+  { value: 'PJE', label: 'Priscillia' }, { value: 'RDE', label: 'Rémi' },
+  { value: 'SVA', label: 'Sébastien' }, { value: 'TDE', label: 'Thibaut' },
+  { value: 'VBR', label: 'Valentin' }, { value: 'VSO', label: 'Victor' }
+];
+
+function isLegacyDefaultCpPeople(people) {
+  return people.length === CP_MASTER.length && people.every(person =>
+    CP_MASTER.some(master => master.value === person.value));
+}
+
+function makeConsent(type) {
+  const L = LANG[state.lang];
+  if (type === 'newsletter') return { cid: ++consentSeq, type: 'newsletter', enabled: true, required: false, name: 'Yes, I agree', value: 'on', label: L.newsletter.label, message: L.newsletter.message };
+  if (type === 'privacy')    return { cid: ++consentSeq, type: 'privacy',    enabled: true, required: true,  name: 'Privacy Policy', value: 'Yes', label: L.privacy.text.replace('{link}', L.privacy.linkText), defaultLinkText: L.privacy.linkText, linkWordIndex: null, linkWordIndices: [], labelDone: false, linkConfirmed: false, message: '' };
+  return { cid: ++consentSeq, type: 'custom', enabled: true, required: false, name: 'Custom_Consent', value: 'on', label: '', message: '' };
+}
+state.consents = [makeConsent('newsletter'), makeConsent('privacy')];
+
+/* ================= DOM helpers ================= */
+const $ = s => document.querySelector(s);
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/* ================= Wizard navigation ================= */
+const STEPS = [
+  { id: 'step-template', label: 'Template' },
+  { id: 'step-basics',   label: 'Setup' },
+  { id: 'step-fields',   label: 'Fields' },
+  { id: 'step-consents', label: 'Consents' },
+  { id: 'step-people',   label: 'People' },
+  { id: 'step-finish',   label: 'Finish' }
+];
+let currentStep = 0;
+
+function renderProgress() {
+  const bar = $('#progress');
+  bar.innerHTML = '';
+  STEPS.forEach((s, i) => {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'progress-step' + (i === currentStep ? ' active' : '') + (i < currentStep ? ' done' : '');
+    el.setAttribute('aria-label', 'Step ' + (i + 1) + ' of ' + STEPS.length + ': ' + s.label);
+    if (i === currentStep) el.setAttribute('aria-current', 'step');
+    el.innerHTML = '<div class="dot">' + (i < currentStep ? '✓' : (i + 1)) + '</div><div class="lbl">' + s.label + '</div>';
+    el.addEventListener('click', () => goToStep(i));
+    bar.appendChild(el);
+    if (i < STEPS.length - 1) {
+      const line = document.createElement('div');
+      line.className = 'progress-line';
+      bar.appendChild(line);
+    }
+  });
+}
+
+function showStep(i) {
+  currentStep = Math.max(0, Math.min(STEPS.length - 1, i));
+  STEPS.forEach((s, idx) => {
+    document.getElementById(s.id).classList.toggle('active', idx === currentStep);
+  });
+  if (currentStep === 0) showTemplateView();
+  renderProgress();
+  $('#back-btn').disabled = currentStep === 0;
+  const selectedTemplate = FORM_TEMPLATES.some(template => template.id === state.selectedTemplate && !template.placeholder);
+  const canAdvance = currentStep > 0 || (state.startChoice === 'template' && state.formMode === 'template' && selectedTemplate);
+  $('#next-btn').style.visibility = currentStep === STEPS.length - 1 || !canAdvance ? 'hidden' : 'visible';
+  $('#next-btn').textContent = currentStep === 0 ? 'Use this template →' : currentStep === STEPS.length - 2 ? 'Finish →' : 'Continue →';
+  $('#step-count').textContent = 'Step ' + (currentStep + 1) + ' of ' + STEPS.length;
+  updateValidationUi();
+  if (currentStep === STEPS.length - 1) renderSummary();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function goToStep(i) {
+  i = Math.max(0, Math.min(STEPS.length - 1, i));
+  if (i > currentStep) {
+    const errors = validateForm();
+    const blocking = errors.find(e => e.step >= currentStep && e.step < i);
+    if (blocking) {
+      validationTouched[blocking.step] = true;
+      showStep(blocking.step);
+      updateValidationUi();
+      attentionToError(blocking);
+      return;
+    }
+  }
+  showStep(i);
+}
+
+function attentionToError(err) {
+  const target = err.field ? $('#' + err.field) : (err.step === 0 ? $('#template-error') : $('#fields-error'));
+  if (!target) return;
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  target.classList.remove('attn');
+  void target.offsetWidth;
+  target.classList.add('attn');
+  setTimeout(() => target.classList.remove('attn'), 1400);
+}
+
+$('#template-grid').addEventListener('click', function (e) {
+  const card = e.target.closest('button[data-template]');
+  if (card) selectTemplate(card.dataset.template);
+});
+$('#use-template-btn').addEventListener('click', function () {
+  state.startChoice = 'template';
+  state.formMode = 'choose';
+  showTemplateView();
+  renderTemplatePicker();
+  $('#template-error').hidden = true;
+  $('#next-btn').style.visibility = 'hidden';
+});
+$('#create-own-btn').addEventListener('click', startCustomForm);
+$('#template-options-back').addEventListener('click', function () {
+  state.startChoice = '';
+  state.formMode = 'choose';
+  state.selectedTemplate = '';
+  showTemplateView();
+  renderTemplatePicker();
+  $('#template-error').hidden = true;
+  $('#next-btn').style.visibility = 'hidden';
+});
+$('#back-btn').addEventListener('click', () => goToStep(currentStep - 1));
+$('#next-btn').addEventListener('click', () => goToStep(currentStep + 1));
+
+function buildFieldRequestMailto(requestedField) {
+  return 'mailto:?subject=' + encodeURIComponent('Request for new CRM form field') + '&body=' + encodeURIComponent(requestedField.trim());
+}
+
+$('#request-field-btn').addEventListener('click', function () {
+  const requestedField = window.prompt('Describe the CRM form field you want added:');
+  if (!requestedField || !requestedField.trim()) return;
+  window.location.href = buildFieldRequestMailto(requestedField);
+});
+
+function renderSummary() {
+  const enabledFields = FIELD_DEFS.filter(d => state.fields[d.key].enabled).length;
+  const activeConsents = state.consents.filter(c => c.enabled).length;
+  const reqConsents = state.consents.filter(c => c.enabled && c.required).length;
+  const langName = { fr: 'Français', en: 'English', de: 'Deutsch', es: 'Español', nl: 'Nederlands' }[state.lang];
+  $('#summary-chips').innerHTML =
+    '<span class="chip">Language: ' + langName + '</span>' +
+    '<span class="chip">' + enabledFields + ' fields</span>' +
+    '<span class="chip">' + activeConsents + ' consents (' + reqConsents + ' required)</span>';
+}
+
+/* ================= Validation ================= */
+const FORM_ID_RE = /^[A-Za-z0-9]+$/;
+/* Errors for a step are only displayed after the user tries to leave that
+   step without fixing them. Once revealed, they clear live when fixed. */
+const validationTouched = { 1: false, 2: false, 3: false };
+
+function validateForm() {
+  const errors = [];
+  if (state.startChoice !== 'custom' && !(state.startChoice === 'template' && state.formMode === 'template' && FORM_TEMPLATES.some(template => template.id === state.selectedTemplate && !template.placeholder))) {
+    errors.push({ field: null, step: 0, msg: 'Choose Use a template or Create your own, then select a template to continue.' });
+  }
+  const rawId = $('#formId').value.trim();
+  const parsedId = parseFormId(rawId);
+  const activeTemplate = FORM_TEMPLATES.find(template => template.id === state.selectedTemplate);
+  if (!activeTemplate?.formId) {
+    if (!rawId) {
+      errors.push({ field: 'formId', step: 1, msg: 'ClickDimensions Form ID is missing — the form has nowhere to submit.' });
+    } else if (!FORM_ID_RE.test(parsedId)) {
+      errors.push({ field: 'formId', step: 1, msg: 'The Form ID looks invalid — it should be letters and numbers only (paste the ID or the full posting URL).' });
+    }
+  }
+  if (!$('#title').value.trim()) {
+    errors.push({ field: 'title', step: 1, msg: 'Form title is missing.' });
+  }
+  if (!$('#submitText').value.trim()) {
+    errors.push({ field: 'submitText', step: 1, msg: 'Submit button text is missing.' });
+  }
+  if (!$('#intro').value.trim()) {
+    errors.push({ field: 'intro', step: 1, msg: 'Intro paragraph is missing.' });
+  }
+  if (!$('#privacyUrl').value.trim()) {
+    errors.push({ field: 'privacyUrl', step: 1, msg: 'Privacy policy URL is missing.' });
+  }
+  if (!FIELD_DEFS.some(d => state.fields[d.key].enabled)) {
+    errors.push({ field: null, step: 2, msg: 'No fields selected — the form would be empty.' });
+  }
+  return errors;
+}
+
+function setFieldError(id, msg) {
+  const input = $('#' + id);
+  const errEl = $('#' + id + '-error');
+  if (!input || !errEl) return;
+  if (msg) {
+    input.classList.add('error');
+    errEl.textContent = msg;
+    errEl.hidden = false;
+  } else {
+    input.classList.remove('error');
+    errEl.hidden = true;
+  }
+}
+
+function updateValidationUi() {
+  const errors = validateForm();
+  const onFinish = currentStep === STEPS.length - 1;
+  // Clear all inline errors
+  ['formId', 'title', 'submitText', 'intro', 'privacyUrl'].forEach(id => setFieldError(id, null));
+  $('#template-error').hidden = true;
+  $('#fields-error').hidden = true;
+  // Apply current ones — only for steps the user has tried to leave,
+  // or everything when viewing the final step.
+  errors.forEach(err => {
+    if (!onFinish && validationTouched[err.step] !== true) return;
+    if (err.step === 0) $('#template-error').hidden = false;
+    if (err.field) setFieldError(err.field, err.msg);
+    if (err.step === 2) $('#fields-error').hidden = false;
+  });
+  // Finish-step banner
+  const banner = $('#finish-errors');
+  if (errors.length) {
+    banner.hidden = false;
+    banner.innerHTML =
+      '<span class="vb-icon">!</span>' +
+      '<div><strong>Before this form will work, fix the following:</strong><ul>' +
+      errors.map(e => '<li>' + esc(e.msg) + ' <span class="vb-link" data-step="' + e.step + '">Go to ' + STEPS[e.step].label + '</span></li>').join('') +
+      '</ul></div>';
+  } else {
+    banner.hidden = true;
+    banner.innerHTML = '';
+  }
+  return errors;
+}
+
+/* ================= Help callouts ================= */
+function renderHelpBlocks() {
+  const img = HELP_IMAGES.formId;
+  $('#help-formid').innerHTML =
+    '<div class="help-block">' +
+      '<div class="help-text"><strong>Where do I find the Form ID?</strong>' +
+      '<p>For a custom form, find its Form Capture ID in ClickDimensions:</p>' +
+      '<ol><li>Go to <code>ClickDimensions &gt; Form Captures</code>.</li>' +
+      '<li>Open the specific form capture.</li>' +
+      '<li>Find the <em>Form Action</em> field. The Form ID is the final part of its URL:</li></ol>' +
+      '<code class="form-id-example">http://analytics.clickdimensions.com/forms/h/<strong>aqwoWBNOoEyLhxJZYqVJ1g</strong></code>' +
+      '<p>Paste the final ID above, or paste the full Form Action URL.</p></div>' +
+      (img
+        ? '<img src="' + esc(img) + '" alt="Where to find the Form ID in ClickDimensions">'
+        : '<div class="help-img-placeholder"><span class="cam">[ image ]</span><span>Coming soon: add a screenshot showing the Form Action field and Form ID.</span></div>') +
+    '</div>';
+}
+
+/* ================= Live mini previews (real form CSS) ================= */
+function renderMiniPreview(id, contentHtml) {
+  const host = $(id);
+  if (!host) return;
+  const preview = host.shadowRoot || host.attachShadow({ mode: 'open' });
+  preview.innerHTML = '<style>' + FORM_CSS + '</style>' + contentHtml;
+}
+
+function getFormImageUrl() {
+  const value = $('#formImageUrl').value.trim();
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.href : '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function renderPreviewBasics() {
+  const imageUrl = getFormImageUrl();
+  const title = $('#title').value.trim();
+  renderMiniPreview('#basics-preview',
+    '<div class="form-container" style="margin:0 auto">' +
+    (imageUrl ? '<img class="template-preview-image" src="' + esc(imageUrl) + '" alt="' + esc(title) + '">' : '') +
+    '<h2>' + esc(title) + '</h2>' +
+    '<h3>' + esc($('#subtitle').value.trim()) + '</h3>' +
+    '<p>' + esc($('#intro').value.trim()) + '</p>' +
+    '</div>');
+}
+
+function renderPreviewSubmit() {
+  renderMiniPreview('#submit-preview',
+    '<div style="max-width:560px;margin:0 auto">' +
+    '<button type="submit">' + esc($('#submitText').value.trim() || 'Submit') + '</button>' +
+    '</div>');
+}
+
+function renderGeneratedFormPreview(id) {
+  const html = buildHtml();
+  const body = state.outputMode === 'cms' ? html : html.replace(/^<!DOCTYPE html>[\s\S]*?<body>/, '').replace(/<\/body>[\s\S]*$/, '');
+  renderMiniPreview(id, body);
+}
+
+function renderPreviewFields() {
+  renderGeneratedFormPreview('#fields-preview');
+  const preview = $('#fields-preview').shadowRoot;
+  if (!preview) return;
+  preview.querySelectorAll('.field-prompt').forEach(prompt => {
+    prompt.classList.add('editable-field-prompt');
+    prompt.setAttribute('role', 'button');
+    prompt.setAttribute('tabindex', '0');
+    prompt.setAttribute('title', 'Click to edit this field text');
+    prompt.style.cursor = 'text';
+    prompt.style.textDecoration = 'underline dotted';
+    prompt.style.textUnderlineOffset = '3px';
+  });
+  if (preview.fieldPromptEditorBound) return;
+  preview.fieldPromptEditorBound = true;
+  const finishEdit = (prompt, commit) => {
+    const key = prompt.dataset.fieldKey;
+    const original = prompt.dataset.originalText || '';
+    const value = prompt.textContent.trim();
+    prompt.contentEditable = 'false';
+    prompt.setAttribute('role', 'button');
+    prompt.setAttribute('aria-label', 'Edit field text: ' + (commit && value ? value : original));
+    if (commit && value) {
+      const scope = state.formMode === 'template' ? state.selectedTemplate : 'custom';
+      if (!state.fieldLabels[scope]) state.fieldLabels[scope] = {};
+      state.fieldLabels[scope][key] = value;
+      if (value !== original) {
+        renderFields();
+        generate();
+      }
+    } else {
+      prompt.textContent = original;
+    }
+  };
+  const beginEdit = prompt => {
+    if (prompt.isContentEditable) return;
+    prompt.dataset.originalText = prompt.textContent;
+    prompt.contentEditable = 'true';
+    prompt.setAttribute('role', 'textbox');
+    prompt.setAttribute('aria-label', 'Edit field text');
+    prompt.focus();
+    const selection = preview.getSelection();
+    const range = preview.ownerDocument.createRange();
+    range.selectNodeContents(prompt);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  };
+  preview.addEventListener('click', e => {
+    const prompt = e.target.closest('.editable-field-prompt');
+    if (!prompt) return;
+    e.preventDefault();
+    beginEdit(prompt);
+  });
+  preview.addEventListener('keydown', e => {
+    const prompt = e.target.closest('.editable-field-prompt');
+    if (!prompt) return;
+    if (prompt.isContentEditable && e.key === 'Enter') {
+      e.preventDefault();
+      finishEdit(prompt, true);
+    } else if (prompt.isContentEditable && e.key === 'Escape') {
+      e.preventDefault();
+      finishEdit(prompt, false);
+    } else if (!prompt.isContentEditable && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      beginEdit(prompt);
+    }
+  });
+  preview.addEventListener('focusout', e => {
+    const prompt = e.target.closest('.editable-field-prompt');
+    if (prompt && prompt.isContentEditable) finishEdit(prompt, true);
+  });
+}
+
+function renderPreviewConsents() {
+  const L = LANG[state.lang];
+  const html = state.consents.filter(c => c.enabled).map(c =>
+    (c.message.trim() ? '<div class="checkbox-group"><span class="newsletter-message">' + esc(c.message.trim()) + '</span></div>' : '') +
+    '<div class="checkbox-group"><label><input type="checkbox"' + (c.required ? ' required' : '') + '><span>' + renderConsentLabelHtml(c, $('#privacyUrl').value.trim()) + (c.required ? ' <span class="required">*</span>' : '') + '</span></label></div>'
+  ).join('');
+  renderMiniPreview('#consents-preview',
+    '<div class="form-container" style="margin:0 auto">' +
+    '<div class="form-section consent-section" style="margin-top:0">' +
+    '<h4 class="section-title">' + esc(L.sections.consents) + '</h4>' +
+    (html || '<p style="font-size:13px;color:#888;text-align:center">No consents enabled.</p>') +
+    '</div></div>');
+}
+
+function renderPreviewPeople() {
+  const L = LANG[state.lang];
+  const st = state.fields['contactperson'];
+  if (!st.enabled) {
+    renderMiniPreview('#cp-preview', '<div class="form-container" style="margin:0 auto"><p style="font-size:13px;color:#888;text-align:center">The contact-person field is currently disabled on the Fields step.</p></div>');
+    return;
+  }
+  renderMiniPreview('#cp-preview',
+    '<div class="form-container" style="margin:0 auto">' +
+    renderFieldHtml(FIELD_DEFS.find(d => d.key === 'contactperson'), L) +
+    '</div>');
+}
+
+function renderPreviewFinish() {
+  renderGeneratedFormPreview('#finish-preview');
+}
+
+/* ================= Generator UI rendering ================= */
+function renderLangPick() {
+  $('#lang-select').value = state.lang;
+}
+
+function setPrivacyUrlLocked(locked) {
+  $('#privacyUrl').readOnly = locked;
+  $('#privacy-url-lock-btn').textContent = locked ? 'Unlock to edit' : 'Lock field';
+  $('#privacy-url-lock-btn').setAttribute('aria-pressed', String(!locked));
+}
+
+function setAntiSpamSettingsLocked(locked) {
+  $('#honeypotOn').disabled = locked;
+  $('#timeTrapOn').disabled = locked;
+  $('#anti-spam-lock-btn').textContent = locked ? 'Unlock options' : 'Lock options';
+  $('#anti-spam-lock-btn').setAttribute('aria-pressed', String(!locked));
+}
+
+function renderFields() {
+  const L = LANG[state.lang];
+  const container = $('#fields-list');
+  const template = FORM_TEMPLATES.find(item => item.id === state.selectedTemplate && !item.placeholder);
+  const isTemplate = state.formMode === 'template' && !!template;
+  $('#fields-step-title').textContent = isTemplate ? template.title + ' Fields:' : 'Which fields should the form have?';
+  $('#fields-step-help').textContent = isTemplate
+    ? 'This template has a fixed CRM field set. To customize the wording shown to visitors, click any field label in the live preview. CRM field IDs stay fixed.'
+    : 'Choose fields and mark required fields. Use the arrows to set their order. To customize the wording shown to visitors, click any field label in the live preview. CRM field IDs stay fixed.';
+  $('#request-field-btn').hidden = isTemplate;
+  container.innerHTML = '';
+  if (isTemplate) {
+      const groups = SECTION_ORDER.map(section => {
+        const fields = FIELD_DEFS.filter(def => def.section === section && state.fields[def.key].enabled);
+        if (!fields.length) return '';
+        return '<section class="template-field-group"><h4>' + esc(L.sections[section]) + '</h4><div class="template-field-list">' +
+          fields.map(def => '<span class="template-field' + (state.fields[def.key].required ? ' is-required' : '') + '">' + esc(getFieldPrompt(def.key, L)) + '</span>').join('') +
+          '</div></section>';
+      }).join('');
+      container.innerHTML = '<div class="card template-summary"><p>This template includes the following fields.</p><div class="template-field-groups">' + groups + '</div>' + (template.persistent ? '' : '<button type="button" class="text-link-btn" id="change-template-btn">Wrong template? Click here to choose another template</button>') + '</div>';
+      container.innerHTML = '<div class="card template-summary"><p>This template includes the following fields.</p><div class="template-field-groups">' + groups + '</div><button type="button" class="text-link-btn" id="change-template-btn">Wrong template? Click here to choose another template</button></div>';
+      $('#change-template-btn').addEventListener('click', function () {
+        state.startChoice = 'template';
+        state.formMode = 'choose';
+        state.selectedTemplate = '';
+        renderTemplatePicker();
+        showStep(0);
+      });
+      return;
+  }
+  const sectionNames = { contact: 'Contact details', profile: 'Profile', interests: 'Interests', assistance: 'Assistance', request: 'Request' };
+  const enabledFields = orderedFieldDefs(FIELD_DEFS.filter(def => state.fields[def.key].enabled));
+  SECTION_ORDER.forEach(sec => {
+    const defs = orderedFieldDefs(FIELD_DEFS.filter(d => d.section === sec));
+    if (!defs.length) return;
+    const card = document.createElement('div');
+    card.className = 'field-section-card';
+    card.innerHTML = '<h3>' + sectionNames[sec] + '</h3>';
+    const table = document.createElement('div');
+    table.className = 'field-table';
+    defs.forEach(def => {
+      const st = state.fields[def.key];
+      const row = document.createElement('div');
+      row.className = 'frow' + (st.enabled ? '' : ' off');
+      const orderIndex = enabledFields.findIndex(item => item.key === def.key);
+      row.innerHTML =
+        '<span class="f-check"><input type="checkbox" data-k="' + def.key + '" data-t="enabled"' + (st.enabled ? ' checked' : '') + '><span class="f-box"></span></span>' +
+        '<span class="f-label">' + esc(getFieldPrompt(def.key, L)) + '</span>' +
+        '<code class="f-name">' + esc(def.name) + '</code>' +
+        (st.enabled ? '<label class="f-req"><input type="checkbox" data-k="' + def.key + '" data-t="required"' + (st.required ? ' checked' : '') + '> required</label>' : '') +
+        (st.enabled ? '<span class="f-order-controls"><span class="f-order-index">' + (orderIndex + 1) + '</span><button type="button" class="f-order-btn" data-move-field="' + def.key + '" data-direction="-1" aria-label="Move ' + esc(getFieldPrompt(def.key, L)) + ' up"' + (orderIndex <= 0 ? ' disabled' : '') + '>↑</button><button type="button" class="f-order-btn" data-move-field="' + def.key + '" data-direction="1" aria-label="Move ' + esc(getFieldPrompt(def.key, L)) + ' down"' + (orderIndex === enabledFields.length - 1 ? ' disabled' : '') + '>↓</button></span>' : '');
+      table.appendChild(row);
+    });
+    card.appendChild(table);
+    container.appendChild(card);
+  });
+}
+
+function moveFieldOrder(key, direction) {
+  const enabled = orderedFieldDefs(FIELD_DEFS.filter(def => state.fields[def.key].enabled));
+  const currentIndex = enabled.findIndex(def => def.key === key);
+  const nextIndex = currentIndex + direction;
+  if (currentIndex < 0 || nextIndex < 0 || nextIndex >= enabled.length) return;
+  const currentPosition = state.fieldOrder.indexOf(enabled[currentIndex].key);
+  const nextPosition = state.fieldOrder.indexOf(enabled[nextIndex].key);
+  [state.fieldOrder[currentPosition], state.fieldOrder[nextPosition]] = [state.fieldOrder[nextPosition], state.fieldOrder[currentPosition]];
+  renderFields();
+  generate();
+}
+
+function renderTemplatePicker() {
+  const grid = $('#template-grid');
+  grid.innerHTML = FORM_TEMPLATES.map(template => {
+    const selected = state.selectedTemplate === template.id;
+    return '<button type="button" class="template-card' + (selected ? ' selected' : '') + '" data-template="' + esc(template.id) + '" aria-pressed="' + selected + '"><span class="template-tag">' + esc(template.category) + '</span><h3>' + esc(template.title) + '</h3><p>' + esc(template.description) + '</p><code class="template-id">Form Capture ID: ' + esc(template.formId) + '</code></button>';
+  }).join('');
+}
+
+function renderPersistentCountryControls() {
+  const template = FORM_TEMPLATES.find(item => item.id === state.selectedTemplate);
+  const fixedId = state.formMode === 'template' && !!template?.formId;
+  $('#formId').readOnly = fixedId;
+  $('#help-formid').hidden = fixedId;
+  $('#template-image-group').hidden = false;
+  $('#links-tracking-card').hidden = false;
+  $('#analytics-toggle-row').hidden = false;
+  $('#analytics-settings').hidden = false;
+  $('#anti-spam-card').hidden = false;
+  $('#privacy-url-lock-btn').hidden = false;
+  $('#outfmt').parentElement.hidden = false;
+  $('#people-settings-help').hidden = false;
+  $('#persistent-people-note').hidden = true;
+  $('#people-settings').hidden = false;
+  if (fixedId) $('#formId').value = template.formId;
+}
+
+function showTemplateView() {
+  const showingTemplates = state.startChoice === 'template';
+  $('#template-choice').hidden = showingTemplates;
+  $('#template-browser').hidden = !showingTemplates;
+}
+
+function selectTemplate(templateId) {
+  const template = FORM_TEMPLATES.find(item => item.id === templateId);
+  if (!template) return;
+  state.startChoice = 'template';
+  state.formMode = 'template';
+  state.selectedTemplate = template.id;
+  state.persistentCountry = '';
+  $('#formId').value = template.formId || '';
+  FIELD_DEFS.forEach(def => {
+    state.fields[def.key].enabled = template.fields.includes(def.key);
+    state.fields[def.key].required = template.required.includes(def.key);
+  });
+  $('#title').value = template.title;
+  $('#subtitle').value = template.subtitle;
+  $('#intro').value = LANG[state.lang].defaults.intro;
+  $('#submitText').value = LANG[state.lang].defaults.submit;
+  renderPersistentCountryControls();
+  renderTemplatePicker();
+  renderFields();
+  renderConsents();
+  generate();
+  goToStep(1);
+}
+
+function startCustomForm() {
+  state.startChoice = 'custom';
+  state.formMode = 'custom';
+  state.selectedTemplate = '';
+  state.persistentCountry = '';
+  $('#formId').value = '';
+  renderPersistentCountryControls();
+  showTemplateView();
+  FIELD_DEFS.forEach(def => {
+    state.fields[def.key].enabled = def.en;
+    state.fields[def.key].required = def.req;
+  });
+  applyLanguageDefaults();
+  renderTemplatePicker();
+  renderFields();
+  renderConsents();
+  generate();
+  goToStep(1);
+}
+
+/* ================= Word picker: select the privacy link phrase ================= */
+function consentLinkWordIndices(c) {
+  const indices = Array.isArray(c.linkWordIndices)
+    ? c.linkWordIndices
+    : Number.isInteger(c.linkWordIndex) ? [c.linkWordIndex] : [];
+  return [...new Set(indices.filter(Number.isInteger))].sort((left, right) => left - right);
+}
+
+function wordPickHtml(c, pendingIndices) {
+  const linkedIndices = new Set(consentLinkWordIndices(c));
+  let wordIndex = 0;
+  return c.label.split(/(\s+)/).map(part => {
+    if (/^\s+$/.test(part)) return esc(part);
+    const index = wordIndex++;
+    const selected = pendingIndices.has(index);
+    const linked = linkedIndices.has(index);
+    return '<span class="w' + (linked ? ' linked' : '') + (selected ? ' sel' : '') + '" role="button" tabindex="0" data-word-index="' + index + '" aria-pressed="' + selected + '">' + esc(part) + '</span>';
+  }).join('');
+}
+
+function bindWordPick(card, c) {
+  if (c.type !== 'privacy') return;
+  const zone = card.querySelector('.word-pick');
+  const doneBtn = card.querySelector('[data-f="done"]');
+  const editBtn = card.querySelector('[data-f="edit"]');
+  const confirmBtn = card.querySelector('[data-f="confirmlink"]');
+  if (!zone || !doneBtn || !editBtn || !confirmBtn) return;
+  const pendingIndices = new Set();
+  const chooseWord = target => {
+    const word = target.closest('[data-word-index]');
+    if (!word) return;
+    const index = Number(word.dataset.wordIndex);
+    const selectedIndices = [...pendingIndices].sort((left, right) => left - right);
+    const note = card.querySelector('[data-role="picker-note"]');
+    if (pendingIndices.has(index)) {
+      if (selectedIndices.length > 1 && index !== selectedIndices[0] && index !== selectedIndices[selectedIndices.length - 1]) {
+        note.textContent = 'The linked phrase must stay together. Remove words from either end of the selection.';
+        return;
+      }
+      pendingIndices.delete(index);
+    } else if (!selectedIndices.length || index === selectedIndices[0] - 1 || index === selectedIndices[selectedIndices.length - 1] + 1) {
+      pendingIndices.add(index);
+    } else {
+      note.textContent = 'Choose a word next to the current selection to keep the linked phrase together.';
+      return;
+    }
+    zone.querySelectorAll('.w').forEach(item => {
+      const selected = pendingIndices.has(Number(item.dataset.wordIndex));
+      item.classList.toggle('sel', selected);
+      item.setAttribute('aria-pressed', String(selected));
+    });
+    confirmBtn.disabled = pendingIndices.size === 0;
+    confirmBtn.textContent = 'Confirm';
+    note.textContent = pendingIndices.size
+      ? 'Selected ' + pendingIndices.size + (pendingIndices.size === 1 ? ' word. Click an adjacent word to extend the link, then Confirm.' : ' adjacent words. Confirm to link this phrase.')
+      : 'No words selected. Click one or more adjacent words to choose the privacy link.';
+  };
+  zone.addEventListener('click', e => chooseWord(e.target));
+  zone.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      chooseWord(e.target);
+    }
+  });
+  doneBtn.addEventListener('click', () => {
+    const editor = card.querySelector('[data-f="label"]');
+    if (!editor.value.trim()) return;
+    c.label = editor.value;
+    c.labelDone = true;
+    c.defaultLinkText = '';
+    c.linkWordIndex = null;
+    c.linkWordIndices = [];
+    c.linkConfirmed = false;
+    renderConsents();
+    generate();
+  });
+  editBtn.addEventListener('click', () => {
+    c.labelDone = false;
+    c.linkConfirmed = false;
+    renderConsents();
+    const updatedCard = document.querySelector('#consents-list .consent-card[data-cid="' + c.cid + '"]');
+    const editor = updatedCard && updatedCard.querySelector('[data-f="label"]');
+    if (editor) editor.focus();
+  });
+  confirmBtn.addEventListener('click', () => {
+    if (!pendingIndices.size) return;
+    c.linkWordIndices = [...pendingIndices].sort((left, right) => left - right);
+    c.linkWordIndex = c.linkWordIndices.length === 1 ? c.linkWordIndices[0] : null;
+    c.defaultLinkText = '';
+    c.labelDone = true;
+    c.linkConfirmed = true;
+    renderConsents();
+    generate();
+  });
+}
+
+function renderConsentLabelHtml(c, privacyUrl) {
+  const linkWordIndices = consentLinkWordIndices(c);
+  if (linkWordIndices.length) {
+    const linkStart = linkWordIndices[0];
+    const linkEnd = linkWordIndices[linkWordIndices.length - 1];
+    let wordIndex = 0;
+    let linkOpen = false;
+    return c.label.split(/(\s+)/).map(part => {
+      if (/^\s+$/.test(part)) return esc(part);
+      const index = wordIndex++;
+      if (index === linkStart) {
+        linkOpen = true;
+        return '<a href="' + esc(privacyUrl) + '" target="_blank" rel="noopener">' + esc(part) + (index === linkEnd ? '</a>' : '');
+      }
+      if (linkOpen) return esc(part) + (index === linkEnd ? '</a>' : '');
+      return esc(part);
+    }).join('');
+  }
+  const parts = c.label.split(/(\s+)/);
+  let wordIndex = 0;
+  const rendered = parts.map(part => {
+    if (/^\s+$/.test(part)) return esc(part);
+    wordIndex++;
+    return esc(part);
+  }).join('');
+  if (c.label.includes('{link}')) {
+    const start = c.label.indexOf('{link}');
+    const linkText = LANG[state.lang].privacy.linkText;
+    return esc(c.label.slice(0, start)) + '<a href="' + esc(privacyUrl) + '" target="_blank" rel="noopener">' + esc(linkText) + '</a>' + esc(c.label.slice(start + 6));
+  }
+  if (c.defaultLinkText) {
+    const start = c.label.indexOf(c.defaultLinkText);
+    if (start >= 0) return esc(c.label.slice(0, start)) + '<a href="' + esc(privacyUrl) + '" target="_blank" rel="noopener">' + esc(c.defaultLinkText) + '</a>' + esc(c.label.slice(start + c.defaultLinkText.length));
+  }
+  return esc(c.label);
+}
+
+function privacyLabelEditorHtml(c) {
+  const note = c.linkConfirmed
+    ? 'The selected phrase links to the privacy policy. Select one or more adjacent words to replace it, or Edit to change the label.'
+    : 'Step 2: Click one word, then click adjacent words to select the full phrase. Click an end word to remove it. Confirm to apply the privacy link.';
+  return '<div class="privacy-label-editor">' +
+    '<div class="gen-group"' + (c.labelDone ? ' hidden' : '') + '>' +
+      '<span class="mini-label">Checkbox label</span>' +
+      '<textarea data-f="label">' + esc(c.label) + '</textarea>' +
+      '<p class="consent-step-note">Step 1: Enter the full consent text, then click Done. Next, select one or more adjacent words to link to the privacy policy.</p>' +
+      '<button type="button" class="btn" data-f="done"' + (!c.label.trim() ? ' hidden' : '') + '>Done</button>' +
+    '</div>' +
+    '<div' + (c.labelDone ? '' : ' hidden') + '>' +
+      '<p class="consent-step-note" data-role="picker-note">' + note + '</p>' +
+      '<div class="word-pick" style="margin:8px 0 10px">' + wordPickHtml(c, new Set()) + '</div>' +
+      '<div class="privacy-label-actions">' +
+        '<button type="button" class="btn ghost" data-f="edit">Edit</button>' +
+        '<button type="button" class="btn" data-f="confirmlink" disabled>Confirm</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function renderConsents() {
+  const container = $('#consents-list');
+  container.innerHTML = '';
+  state.consents.forEach(c => {
+    const card = document.createElement('div');
+    card.className = 'consent-card' + (c.enabled ? ' on' : '');
+    card.dataset.cid = c.cid;
+    card.innerHTML =
+      '<div class="c-top">' +
+        '<span class="c-tag">' + c.type + '</span>' +
+        '<label class="switch-row" style="padding:0"><span class="s-label" style="font-size:13px">Enabled</span></label>' +
+        '<label class="switch"><input type="checkbox" data-f="enabled"' + (c.enabled ? ' checked' : '') + '><span class="slider"></span></label>' +
+        '<label class="switch-row" style="padding:0"><span class="s-label" style="font-size:13px">Required to submit</span></label>' +
+        '<label class="switch"><input type="checkbox" data-f="required"' + (c.required ? ' checked' : '') + '><span class="slider"></span></label>' +
+        '<span class="grow"></span>' +
+        (c.type === 'custom' ? '<button type="button" class="btn danger" data-f="remove">Remove</button>' : '') +
+      '</div>' +
+      (c.type === 'custom'
+        ? '<div class="c-field-row"><span>Field name: <input type="text" data-f="name" value="' + esc(c.name) + '"></span><span>Submit value: <input type="text" data-f="value" value="' + esc(c.value) + '" style="width:90px"></span></div>'
+        : '<div class="c-field-row"><span>Field name: <code style="background:#f0f3f1;padding:3px 8px;border-radius:6px">' + esc(c.name) + '</code> (fixed CRM ID)</span></div>') +
+      (c.type === 'privacy' ? privacyLabelEditorHtml(c) : '<div class="gen-group" style="margin-bottom:10px"><span class="mini-label">Checkbox label</span><textarea data-f="label">' + esc(c.label) + '</textarea></div>') +
+      '<div class="gen-group" style="margin-bottom:0"><span class="mini-label">Intro message above checkbox (optional)</span><textarea data-f="message">' + esc(c.message) + '</textarea></div>';
+    container.appendChild(card);
+    bindWordPick(card, c);
+  });
+}
+
+function applyLanguageDefaults() {
+  const L = LANG[state.lang];
+  const template = FORM_TEMPLATES.find(item => item.id === state.selectedTemplate && !item.placeholder);
+  $('#title').value = template && state.formMode === 'template' ? template.title : L.defaults.title;
+  $('#subtitle').value = template && state.formMode === 'template' ? template.subtitle : L.defaults.subtitle;
+  $('#intro').value = L.defaults.intro;
+  $('#submitText').value = L.defaults.submit;
+  $('#privacyUrl').value = PRIVACY_URLS[state.lang] || PRIVACY_URLS.en;
+  setPrivacyUrlLocked(true);
+  state.consents.forEach(c => {
+    if (c.type === 'newsletter') { c.label = L.newsletter.label; c.message = L.newsletter.message; }
+    if (c.type === 'privacy') {
+      c.label = L.privacy.text.replace('{link}', L.privacy.linkText);
+      c.defaultLinkText = L.privacy.linkText;
+      c.linkWordIndex = null;
+      c.linkWordIndices = [];
+      c.labelDone = false;
+      c.linkConfirmed = false;
+    }
+  });
+}
+
+/* ================= HTML output generation ================= */
+function parseFormId(v) {
+  v = (v || '').trim();
+  if (v.indexOf('/') >= 0) v = v.split('/').filter(Boolean).pop();
+  return v;
+}
+
+function reqStar(req) { return req ? ' <span class="required">*</span>' : ''; }
+function reqAttr(req) { return req ? ' required' : ''; }
+
+function getFieldPrompt(key, L) {
+  const scope = state.formMode === 'template' ? state.selectedTemplate : 'custom';
+  return (state.fieldLabels[scope] && state.fieldLabels[scope][key]) || (L.labels && L.labels[key]) || key;
+}
+
+function renderFieldHtml(def, L) {
+  const st = state.fields[def.key];
+  if (!st.enabled) return '';
+  const label = '<span class="field-prompt" data-field-key="' + esc(def.key) + '">' + esc(getFieldPrompt(def.key, L)) + '</span>';
+  const ph = L.placeholders[def.key] ? ' placeholder="' + esc(L.placeholders[def.key]) + '"' : '';
+  const ac = def.ac ? ' autocomplete="' + def.ac + '"' : '';
+
+  if (def.type === 'textarea') {
+    return '  <div class="form-group"><label for="' + def.id + '">' + label + reqStar(st.required) + '</label><textarea id="' + def.id + '" name="' + esc(def.name) + '"' + reqAttr(st.required) + ph + '></textarea></div>';
+  }
+  if (def.type === 'select') {
+    let opts = '<option value="">' + esc(L.selectPlaceholder) + '</option>';
+    const template = FORM_TEMPLATES.find(item => item.id === state.selectedTemplate);
+    const optionSet = template?.optionSets?.[def.key] || def.options;
+    OPTION_SETS[optionSet].forEach(v => {
+      opts += '<option value="' + esc(v) + '">' + esc(L.options[optionSet][v]) + '</option>';
+    });
+    return '  <div class="form-group"><label for="' + def.id + '">' + label + reqStar(st.required) + '</label><select id="' + def.id + '" name="' + esc(def.name) + '"' + reqAttr(st.required) + '>' + opts + '</select></div>';
+  }
+  if (def.type === 'checkboxes') {
+    return '  <div class="checkbox-group"><span>' + label + reqStar(st.required) + '</span>' +
+      '<label><input type="checkbox" name="' + esc(def.name) + '" value="Kverneland"' + reqAttr(st.required) + '> Kverneland</label>' +
+      '<label><input type="checkbox" name="' + esc(def.name) + '" value="Vicon"> Vicon</label>' +
+      '<label><input type="checkbox" name="' + esc(def.name) + '" value="No"> ' + esc(L.options.customer['No']) + '</label></div>';
+  }
+  if (def.type === 'contactperson') {
+    let opts = '<option value="">' + esc(L.selectPlaceholder) + '</option>';
+    cpPeople.forEach(p => {
+      opts += '<option value="' + esc(p.value) + '">' + esc(p.label) + '</option>';
+    });
+    const name = state.cpName.trim() || def.name;
+    return '  <div class="form-group"><label for="' + def.id + '">' + label + reqStar(st.required) + '</label><select id="' + def.id + '" name="' + esc(name) + '"' + reqAttr(st.required) + '>' + opts + '</select></div>';
+  }
+  // text / email / tel
+  return '  <div class="form-group"><label for="' + def.id + '">' + label + reqStar(st.required) + '</label><input type="' + def.type + '" id="' + def.id + '" name="' + esc(def.name) + '"' + reqAttr(st.required) + ac + ph + '></div>';
+}
+
+const FORM_CSS = [
+  '   * { box-sizing: border-box; margin: 0; padding: 0; }',
+  '   body { font-family: Arial, sans-serif; background: #f5f5f5; }',
+  '   .form-container { max-width: 560px; margin: 40px auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }',
+  '   .template-preview-image { display: block; width: 100%; max-height: 220px; object-fit: cover; border-radius: 6px; margin: 0 auto 20px; }',
+  '   h2 { color: #007b3d; margin-bottom: 10px; text-align: center; }',
+  '   h3 { margin-bottom: 20px; text-align: center; }',
+  '   p { font-size: 16px; }',
+  '   .form-section { margin-top: 30px; }',
+  '   .section-title { color: #007b3d; font-size: 18px; margin-bottom: 18px; }',
+  '   .form-group { margin-bottom: 18px; }',
+  '   @media (min-width: 768px) {',
+  '     .name-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }',
+  '   }',
+  '   label { display: block; font-weight: bold; margin-bottom: 6px; color: #333; font-size: 14px; }',
+  '   input[type="text"], input[type="email"], input[type="tel"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 15px; }',
+  '   textarea { min-height: 100px; resize: vertical; }',
+  '   input[type="text"]:focus, input[type="email"]:focus, input[type="tel"]:focus, select:focus, textarea:focus { outline: none; border-color: #007b3d; }',
+  '   .checkbox-group { margin-bottom: 12px; }',
+  '   .checkbox-group label { display: flex; align-items: flex-start; font-weight: normal; cursor: pointer; }',
+  '   .checkbox-group input[type="checkbox"] { margin-right: 10px; margin-top: 3px; width: 16px; height: 16px; }',
+  '  .newsletter-message { font-size: 16px; }',
+  '  a { color: #0000ee; text-decoration: underline; }',
+  '   .consent-section { background: #f0f7ff; border-left: 3px solid #007b3d; padding: 16px; border-radius: 0 4px 4px 0; margin-bottom: 20px; }',
+  '   button[type="submit"] { width: 100%; background: #007b3d; color: white; padding: 12px; border: none; border-radius: 4px; font-size: 16px; font-weight: bold; cursor: pointer; }',
+  '   button[type="submit"]:hover { background: #056836; }',
+  '   .required { color: #cc0000; }',
+  '   .form-note { font-size: 12px; color: #666; margin-top: 12px; }',
+  '   .hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }'
+].join('\n');
+
+function buildAntiSpamScript(honeypot, timeTrap, xmlSafe) {
+  const lines = [];
+  lines.push('<scr' + 'ipt>');
+  lines.push('(function() {');
+  lines.push("  const form = document.querySelector('form');");
+  if (honeypot) lines.push("  const honeypot = document.getElementById('website');");
+  lines.push("  const redirectField = document.getElementById('redirect');");
+  if (honeypot) lines.push('  const originalAction = form.action;');
+  if (timeTrap) lines.push('  const formLoadTime = Date.now();');
+  if (honeypot) lines.push('  let actionBroken = false;');
+  lines.push("  redirectField.value = window.location.href.split('#')[0] + '#form-success';");
+  if (honeypot) {
+    lines.push("  honeypot.addEventListener('input', function() {");
+    if (xmlSafe) {
+      // eZ Publish stores block content as XML: raw && and < break the save.
+      lines.push("    if (this.value.length > 0) {");
+      lines.push("      if (!actionBroken) { form.action = 'about:blank'; actionBroken = true; console.log('Spam detected: honeypot filled'); }");
+      lines.push("    }");
+    } else {
+      lines.push("    if (this.value.length > 0 && !actionBroken) { form.action = 'about:blank'; actionBroken = true; console.log('Spam detected: honeypot filled'); }");
+    }
+    lines.push('  });');
+  }
+  lines.push("  form.addEventListener('submit', function(e) {");
+  if (honeypot) lines.push("    if (honeypot.value.trim() !== '') { e.preventDefault(); form.action = 'about:blank'; console.log('Spam blocked: honeypot field filled'); return false; }");
+  if (timeTrap) {
+    if (xmlSafe) lines.push("    if (formLoadTime + 3000 > Date.now()) { e.preventDefault(); alert('Please take your time to fill out the form correctly.'); return false; }");
+    else lines.push("    if (Date.now() - formLoadTime < 3000) { e.preventDefault(); alert('Please take your time to fill out the form correctly.'); return false; }");
+  }
+  if (honeypot) {
+    if (xmlSafe) {
+      lines.push("    if (actionBroken) {");
+      lines.push("      if (honeypot.value.trim() === '') { form.action = originalAction; actionBroken = false; }");
+      lines.push("    }");
+    } else {
+      lines.push("    if (actionBroken && honeypot.value.trim() === '') { form.action = originalAction; actionBroken = false; }");
+    }
+  }
+  lines.push('  });');
+  lines.push('})();');
+  lines.push('</scr' + 'ipt>');
+  return lines.join('\n');
+}
+
+function buildHtml(mode) {
+  mode = mode || state.outputMode || 'cms';
+  const L = LANG[state.lang];
+  const formId = parseFormId($('#formId').value) || 'PASTE-FORM-ID-HERE';
+  const action = 'https://analytics.clickdimensions.com/forms/h/' + formId;
+  const title = $('#title').value.trim();
+  const subtitle = $('#subtitle').value.trim();
+  const intro = $('#intro').value.trim();
+  const imageUrl = getFormImageUrl();
+  const submitText = $('#submitText').value.trim() || 'Submit';
+  const privacyUrl = $('#privacyUrl').value.trim();
+  const honeypot = $('#honeypotOn').checked;
+  const timeTrap = $('#timeTrapOn').checked;
+  const privacyLink = '<a href="' + esc(privacyUrl) + '" target="_blank" rel="noopener">' + esc(L.privacy.linkText) + '</a>';
+
+  const out = [];
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const p = mode === 'full' ? ' ' : '';
+  if (mode === 'full') {
+    out.push('<!--');
+    out.push('  Generated by KVG CRM Form Generator');
+    out.push('  Date: ' + dateStr + ' | Language: ' + state.lang + ' | Form ID: ' + formId);
+    out.push('-->');
+    out.push('<!DOCTYPE html>');
+    out.push('<html lang="' + state.lang + '">');
+    out.push('<head>');
+    out.push(' <meta charset="UTF-8">');
+    out.push(' <meta name="viewport" content="width=device-width, initial-scale=1.0">');
+    out.push(' <title>' + esc(title) + '</title>');
+  } else {
+    // CMS fragment: no doctype/html/head/body. Must stay valid XML for eZ Publish.
+    out.push('<!-- KVG CRM Form Generator | ' + dateStr + ' | lang: ' + state.lang + ' | form: ' + formId + ' -->');
+  }
+  out.push(p + '<style>');
+  out.push(FORM_CSS);
+  out.push(p + '</style>');
+  if ($('#analyticsOn').checked) {
+    out.push(p + '<script type="text/javascript" src="https://analytics.clickdimensions.com/ts.js"><\/script>');
+    out.push(p + '<script type="text/javascript">');
+    out.push("  var cdAnalytics = new clickdimensions.Analytics('analytics.clickdimensions.com');");
+    out.push("  cdAnalytics.setAccountKey('" + esc($('#accountKey').value.trim()) + "');");
+    out.push("  cdAnalytics.setDomain('" + esc($('#domain').value.trim()) + "');");
+    out.push('  cdAnalytics.setScore(typeof(cdScore) == "undefined" ? 0 : (cdScore == 0 ? null : cdScore));');
+    out.push('  cdAnalytics.trackPage();');
+    out.push(p + '<\/script>');
+  }
+  if (mode === 'full') {
+    out.push('</head>');
+    out.push('<body>');
+  }
+  out.push('<form method="POST" action="' + esc(action) + '" class="form-container">');
+  if (imageUrl) out.push(' <img class="template-preview-image" src="' + esc(imageUrl) + '" alt="' + esc(title) + '">');
+  out.push(' <h2>' + esc(title) + '</h2>');
+  out.push(' <h3>' + esc(subtitle) + '</h3>');
+  out.push(' <p>' + esc(intro) + '</p>');
+  if (honeypot) {
+    out.push(' <div class="hp-field" aria-hidden="true"><label for="website">Website</label><input type="text" id="website" name="website" tabindex="-1" autocomplete="off"></div>');
+  }
+  out.push(' <input type="hidden" id="redirect" name="redirect" value="">');
+
+  // Field sections
+  if (state.formMode === 'custom') {
+    const defs = orderedFieldDefs(FIELD_DEFS.filter(def => state.fields[def.key].enabled));
+    let activeSection = null;
+    let sectionIndex = 0;
+    for (let index = 0; index < defs.length; index++) {
+      const def = defs[index];
+      if (def.section !== activeSection) {
+        if (activeSection !== null) out.push(' </section>');
+        activeSection = def.section;
+        const titleId = 'field-section-title-' + sectionIndex++;
+        out.push('');
+        out.push(' <section class="form-section" aria-labelledby="' + titleId + '">');
+        out.push('  <h4 class="section-title" id="' + titleId + '">' + esc(L.sections[activeSection]) + '</h4>');
+      }
+      const next = defs[index + 1];
+      if (def.key === 'firstname' && next && next.key === 'lastname' && next.section === def.section) {
+        out.push('  <div class="name-row">');
+        out.push('  ' + renderFieldHtml(def, L));
+        out.push('  ' + renderFieldHtml(next, L));
+        out.push('  </div>');
+        index++;
+      } else {
+        out.push(renderFieldHtml(def, L));
+      }
+    }
+    if (activeSection !== null) out.push(' </section>');
+  } else {
+    SECTION_ORDER.forEach(sec => {
+      const defs = FIELD_DEFS.filter(d => d.section === sec && state.fields[d.key].enabled);
+      if (!defs.length) return;
+      out.push('');
+      out.push(' <section class="form-section" aria-labelledby="' + sec + '-title">');
+      out.push('  <h4 class="section-title" id="' + sec + '-title">' + esc(L.sections[sec]) + '</h4>');
+      defs.forEach(def => {
+        if (def.key === 'lastname' && state.fields['firstname'].enabled) return;
+        if (def.key === 'firstname' && state.fields['lastname'].enabled) {
+          const lnDef = FIELD_DEFS.find(d => d.key === 'lastname');
+          out.push('  <div class="name-row">');
+          out.push('  ' + renderFieldHtml(def, L));
+          out.push('  ' + renderFieldHtml(lnDef, L));
+          out.push('  </div>');
+          return;
+        }
+        out.push(renderFieldHtml(def, L));
+      });
+      out.push(' </section>');
+    });
+  }
+
+  // Consents section
+  const activeConsents = state.consents.filter(c => c.enabled);
+  if (activeConsents.length) {
+    out.push('');
+    out.push(' <section class="form-section consent-section" aria-labelledby="consents-title">');
+    out.push('  <h4 class="section-title" id="consents-title">' + esc(L.sections.consents) + '</h4>');
+    activeConsents.forEach(c => {
+      if (c.message.trim()) {
+        out.push('  <div class="checkbox-group"><span class="newsletter-message">' + esc(c.message.trim()) + '</span></div>');
+      }
+      const labelHtml = renderConsentLabelHtml(c, privacyUrl);
+      out.push('  <div class="checkbox-group"><label><input type="checkbox" name="' + esc(c.name) + '" value="' + esc(c.value) + '"' + reqAttr(c.required) + '><span>' + labelHtml + reqStar(c.required) + '</span></label></div>');
+    });
+    out.push(' </section>');
+  }
+
+  out.push(' <button type="submit">' + esc(submitText) + '</button>');
+  if (state.consents.some(c => c.enabled && c.type === 'privacy')) {
+    out.push(' <p class="form-note">' + esc(L.formNote).replace('{link}', privacyLink) + '</p>');
+  }
+  out.push('</form>');
+  out.push(buildAntiSpamScript(honeypot, timeTrap, mode === 'cms'));
+  let html = out.join('\n');
+  if (mode === 'cms') {
+    // eZ Publish stores block content as XML: void elements must self-close
+    // and boolean attributes need explicit values.
+    html = html.replace(/<input([^>]*)>/g, '<input$1 />');
+    html = html.replace(/<img([^>]*)>/g, '<img$1 />');
+    html = html.replace(/ required(?=[ />])/g, ' required="required"');
+  } else {
+    html += '\n</body>\n</html>';
+  }
+  return html;
+}
+
+/* ================= Generate / copy / download / preview ================= */
+let generateTimer = null;
+function scheduleGenerate() {
+  clearTimeout(generateTimer);
+  generateTimer = setTimeout(generate, 250);
+}
+
+function generate() {
+  const html = buildHtml();
+  $('#output').value = html;
+  refreshPreviews();
+  updateValidationUi();
+  saveConfig();
+}
+
+function refreshPreviews() {
+  renderPreviewBasics();
+  renderPreviewSubmit();
+  renderPreviewFields();
+  renderPreviewConsents();
+  renderPreviewPeople();
+  renderPreviewFinish();
+}
+
+$('#finish-errors').addEventListener('click', function (e) {
+  const link = e.target.closest('.vb-link');
+  if (link) goToStep(Number(link.dataset.step));
+});
+
+/* Output format picker */
+function renderOutputMode() {
+  document.querySelectorAll('.fmt-btn').forEach(b => b.classList.toggle('sel', b.dataset.fmt === state.outputMode));
+  $('#fmt-hint').textContent = state.outputMode === 'cms'
+    ? 'Fragment without page wrapper. JavaScript is XML-safe so eZ Publish can store it — use this for HTML blocks.'
+    : 'Complete standalone page — use for testing, downloading, or iframe embedding. Do NOT paste this into an eZ Publish HTML block.';
+}
+$('#outfmt').addEventListener('click', function (e) {
+  const btn = e.target.closest('.fmt-btn');
+  if (!btn) return;
+  state.outputMode = btn.dataset.fmt;
+  renderOutputMode();
+  generate();
+});
+
+$('#copy-btn').addEventListener('click', async function () {
+  const ta = $('#output');
+  try {
+    await navigator.clipboard.writeText(ta.value);
+  } catch (e) {
+    ta.focus(); ta.select(); document.execCommand('copy');
+  }
+  this.textContent = 'Copied to clipboard';
+  setTimeout(() => { $('#copy-btn').textContent = 'Copy HTML'; }, 1500);
+});
+
+$('#download-btn').addEventListener('click', function () {
+  const formId = parseFormId($('#formId').value) || 'form';
+  const blob = new Blob([$('#output').value], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'html-form-' + formId + '.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+/* ================= People manager ================= */
+function renderPeople() {
+  const chips = $('#cp-chips');
+  chips.innerHTML = cpPeople.length
+    ? cpPeople.map((p, i) =>
+        '<span class="cp-chip">' + esc(p.label) + ' <code style="font-size:10.5px;opacity:.7">' + esc(p.value) + '</code>' +
+        '<button type="button" data-i="' + i + '" title="Remove">×</button></span>').join('')
+    : '<span style="font-size:13px;color:var(--muted)">No people in the list yet — add one below.</span>';
+  const sel = $('#cp-select');
+  sel.innerHTML = CP_MASTER.map(m => '<option value="' + esc(m.value) + '">' + esc(m.label) + ' (' + esc(m.value) + ')</option>').join('');
+  renderPreviewPeople();
+}
+
+$('#cp-chips').addEventListener('click', function (e) {
+  const btn = e.target.closest('button[data-i]');
+  if (!btn) return;
+  cpPeople.splice(Number(btn.dataset.i), 1);
+  renderPeople();
+  generate();
+});
+
+$('#cp-add-btn').addEventListener('click', function () {
+  const sel = $('#cp-select');
+  const master = CP_MASTER.find(m => m.value === sel.value);
+  if (!master) return;
+  const label = $('#cp-display').value.trim() || master.label;
+  const existing = cpPeople.findIndex(p => p.value === master.value);
+  if (existing >= 0) cpPeople[existing].label = label; else cpPeople.push({ value: master.value, label: label });
+  $('#cp-display').value = '';
+  renderPeople();
+  generate();
+});
+
+$('#cp-name').addEventListener('input', function () {
+  state.cpName = this.value;
+  scheduleGenerate();
+});
+
+/* ================= Config persistence ================= */
+const CONFIG_KEY = 'kvgFormGenConfig';
+
+function saveConfig() {
+  try {
+    const cfg = {
+      lang: state.lang,
+      formId: $('#formId').value,
+      title: $('#title').value,
+      subtitle: $('#subtitle').value,
+      intro: $('#intro').value,
+      submitText: $('#submitText').value,
+      privacyUrl: $('#privacyUrl').value,
+      analyticsOn: $('#analyticsOn').checked,
+      accountKey: $('#accountKey').value,
+      domain: $('#domain').value,
+      honeypotOn: $('#honeypotOn').checked,
+      timeTrapOn: $('#timeTrapOn').checked,
+      formMode: state.formMode,
+      selectedTemplate: state.selectedTemplate,
+      persistentCountry: state.persistentCountry,
+      fieldLabels: state.fieldLabels,
+      fieldOrder: state.fieldOrder,
+      formImageUrl: $('#formImageUrl').value,
+      fields: state.fields,
+      cpName: state.cpName,
+      cpPeople: cpPeople,
+      outputMode: state.outputMode,
+      consents: state.consents
+    };
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
+  } catch (e) { /* ignore */ }
+}
+
+function loadConfig() {
+  try {
+    const raw = localStorage.getItem(CONFIG_KEY);
+    if (!raw) return false;
+    const cfg = JSON.parse(raw);
+    state.lang = cfg.lang || 'en';
+    state.outputMode = cfg.outputMode || 'cms';
+    state.formMode = cfg.formMode || 'custom';
+    state.selectedTemplate = cfg.selectedTemplate || '';
+    state.persistentCountry = cfg.persistentCountry || '';
+    state.fieldLabels = cfg.fieldLabels && typeof cfg.fieldLabels === 'object' ? cfg.fieldLabels : {};
+    if (Object.keys(state.fieldLabels).some(key => FIELD_DEFS.some(def => def.key === key))) {
+      state.fieldLabels = { custom: state.fieldLabels };
+    }
+    if (Array.isArray(cfg.fieldOrder)) {
+      state.fieldOrder = [...new Set(cfg.fieldOrder.filter(key => FIELD_DEFS.some(def => def.key === key)))];
+      FIELD_DEFS.forEach(def => { if (!state.fieldOrder.includes(def.key)) state.fieldOrder.push(def.key); });
+    }
+    if (state.formMode === 'template' && !FORM_TEMPLATES.some(template => template.id === state.selectedTemplate && !template.placeholder)) {
+      state.formMode = 'custom';
+      state.selectedTemplate = '';
+    }
+    if (cfg.fields) Object.keys(cfg.fields).forEach(k => { if (state.fields[k]) state.fields[k] = cfg.fields[k]; });
+    state.cpName = cfg.cpName || state.cpName;
+    let savedPeople = Array.isArray(cfg.cpPeople) ? cfg.cpPeople : null;
+    if (!savedPeople && cfg.cpOptions) {
+      savedPeople = String(cfg.cpOptions).split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+        const eq = line.indexOf('=');
+        return eq > 0 ? { value: line.slice(0, eq).trim(), label: line.slice(eq + 1).trim() } : { value: line, label: line };
+      });
+    }
+    if (savedPeople && !isLegacyDefaultCpPeople(savedPeople)) cpPeople = savedPeople;
+    if (Array.isArray(cfg.consents) && cfg.consents.length) {
+      const configuredConsents = cfg.consents.filter(c => c.type !== 'custom');
+      if (configuredConsents.length) state.consents = configuredConsents;
+      state.consents.forEach(c => {
+        if (c.type !== 'privacy') return;
+        if (c.label && c.label.includes('{link}')) {
+          c.label = c.label.replace('{link}', LANG[state.lang].privacy.linkText);
+          c.defaultLinkText = LANG[state.lang].privacy.linkText;
+          c.linkWordIndex = null;
+          c.linkWordIndices = [];
+        }
+        if (typeof c.defaultLinkText !== 'string') c.defaultLinkText = '';
+        if (!Number.isInteger(c.linkWordIndex)) c.linkWordIndex = null;
+        if (!Array.isArray(c.linkWordIndices)) c.linkWordIndices = Number.isInteger(c.linkWordIndex) ? [c.linkWordIndex] : [];
+        c.linkWordIndices = [...new Set(c.linkWordIndices.filter(Number.isInteger))].sort((left, right) => left - right);
+        if (typeof c.labelDone !== 'boolean') c.labelDone = false;
+        if (typeof c.linkConfirmed !== 'boolean') c.linkConfirmed = false;
+      });
+      consentSeq = state.consents.reduce((m, c) => Math.max(m, c.cid || 0), 0);
+    }
+    $('#formId').value = cfg.formId || '';
+    renderPersistentCountryControls();
+    $('#title').value = cfg.title || '';
+    $('#subtitle').value = cfg.subtitle || '';
+    $('#intro').value = cfg.intro || '';
+    $('#submitText').value = cfg.submitText || '';
+    $('#formImageUrl').value = cfg.formImageUrl || '';
+    if (!cfg.privacyUrl || Object.values(PRIVACY_URLS).includes(cfg.privacyUrl)) {
+      $('#privacyUrl').value = PRIVACY_URLS[state.lang] || PRIVACY_URLS.en;
+    } else {
+      $('#privacyUrl').value = cfg.privacyUrl;
+    }
+    $('#analyticsOn').checked = cfg.analyticsOn !== false;
+    if (cfg.accountKey) $('#accountKey').value = cfg.accountKey;
+    if (cfg.domain) $('#domain').value = cfg.domain;
+    $('#honeypotOn').checked = cfg.honeypotOn !== false;
+    $('#timeTrapOn').checked = cfg.timeTrapOn !== false;
+    return true;
+  } catch (e) { return false; }
+}
+
+/* ================= Event wiring ================= */
+$('#lang-select').addEventListener('change', function () {
+  state.lang = this.value;
+  renderLangPick();
+  applyLanguageDefaults();
+  renderFields();
+  renderConsents();
+  generate();
+});
+
+$('#privacy-url-lock-btn').addEventListener('click', function () {
+  const lock = !$('#privacyUrl').readOnly;
+  setPrivacyUrlLocked(lock);
+  if (!lock) $('#privacyUrl').focus();
+});
+
+$('#anti-spam-lock-btn').addEventListener('click', function () {
+  setAntiSpamSettingsLocked(!$('#honeypotOn').disabled);
+});
+
+$('#fields-list').addEventListener('change', function (e) {
+  const k = e.target.dataset.k, t = e.target.dataset.t;
+  if (k && t) {
+    state.fields[k][t] = e.target.checked;
+    if (t === 'enabled') renderFields();
+    generate();
+  }
+});
+$('#fields-list').addEventListener('click', function (e) {
+  const moveButton = e.target.closest('[data-move-field]');
+  if (moveButton) {
+    e.preventDefault();
+    e.stopPropagation();
+    moveFieldOrder(moveButton.dataset.moveField, Number(moveButton.dataset.direction));
+    return;
+  }
+  if (e.target.closest('.f-req') || e.target.tagName === 'INPUT') return;
+  const row = e.target.closest('.frow');
+  if (!row) return;
+  const box = row.querySelector('input[data-t="enabled"]');
+  if (box) { box.checked = !box.checked; box.dispatchEvent(new Event('change', { bubbles: true })); }
+});
+
+$('#consents-list').addEventListener('input', function (e) {
+  const card = e.target.closest('.consent-card');
+  if (!card) return;
+  const c = state.consents.find(x => x.cid === Number(card.dataset.cid));
+  if (!c) return;
+  const f = e.target.dataset.f;
+  if (f === 'name' || f === 'value' || f === 'label' || f === 'message') {
+    c[f] = e.target.value;
+    if (f === 'label' && c.type === 'privacy') {
+      c.defaultLinkText = '';
+      c.linkWordIndex = null;
+      c.linkWordIndices = [];
+      c.linkConfirmed = false;
+      const doneButton = card.querySelector('[data-f="done"]');
+      if (doneButton) doneButton.hidden = !c.label.trim();
+    }
+    scheduleGenerate();
+  }
+});
+$('#consents-list').addEventListener('change', function (e) {
+  const card = e.target.closest('.consent-card');
+  if (!card) return;
+  const c = state.consents.find(x => x.cid === Number(card.dataset.cid));
+  if (!c) return;
+  const f = e.target.dataset.f;
+  if (f === 'enabled') { c.enabled = e.target.checked; card.classList.toggle('on', c.enabled); generate(); }
+  if (f === 'required') { c.required = e.target.checked; generate(); }
+});
+$('#consents-list').addEventListener('click', function (e) {
+  if (e.target.dataset.f === 'remove') {
+    const card = e.target.closest('.consent-card');
+    state.consents = state.consents.filter(x => x.cid !== Number(card.dataset.cid));
+    renderConsents();
+    generate();
+  }
+});
+['#formId', '#title', '#subtitle', '#intro', '#submitText', '#formImageUrl', '#privacyUrl', '#accountKey', '#domain'].forEach(sel => {
+  $(sel).addEventListener('input', scheduleGenerate);
+});
+['#analyticsOn', '#honeypotOn', '#timeTrapOn'].forEach(sel => {
+  $(sel).addEventListener('change', function () {
+    if (sel === '#analyticsOn') $('#analytics-settings').style.display = this.checked ? '' : 'none';
+    generate();
+  });
+});
+
+/* ================= Init ================= */
+if (!loadConfig()) applyLanguageDefaults();
+renderPersistentCountryControls();
+setPrivacyUrlLocked(true);
+setAntiSpamSettingsLocked(true);
+$('#cp-name').value = state.cpName;
+renderTemplatePicker();
+renderLangPick();
+renderHelpBlocks();
+renderFields();
+renderConsents();
+renderPeople();
+renderOutputMode();
+$('#analytics-settings').style.display = $('#analyticsOn').checked ? '' : 'none';
+generate();
+goToStep(0);
+</script>
+</body>
+</html>
